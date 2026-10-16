@@ -1,0 +1,54 @@
+# Phase 1 case list. Cases come from CVE-Bench (MIT, https://github.com/GiovanniGatti/cve-bench),
+# pinned to one commit so results can be reproduced. Fields mirror each task's meta.json.
+# `why` records the reason each case was chosen for THIS experiment (what it lets us measure),
+# not why the vulnerability class matters in general.
+cve_bench_repo: https://github.com/GiovanniGatti/cve-bench
+cve_bench_commit: 45cb1bf72f034eace43e46a9ae131c53a7fd292b
+cve_bench_root: ~/cve-bench   # local clone; tasks live under <root>/tasks/<id>/
+cases:
+  - id: CVE-2026-24486
+    project: Kludex/python-multipart
+    cwe: [CWE-22]
+    cvss: 8.6
+    vulnerable_sha: "9433f4bbc9652bdde82bbe380984e32f8cfc89c4^"
+    fixed_sha: "9433f4bbc9652bdde82bbe380984e32f8cfc89c4"
+    why: >-
+      A direct dependency of this repo, pinned to a vulnerable version in requirements.txt;
+      fixing it here ties into the dependency-upgrade work and makes the story continuous.
+  - id: GHSA-r758-8hxw-4845
+    project: EmilStenstrom/justhtml
+    cwe: [CWE-79]
+    cvss: 2.1
+    vulnerable_sha: "9060698c5b71ebb379506bde2b45e600ab7b240e"
+    fixed_sha: "8adc4dfe31723dc522f44338f9bd98381c92b076"
+    why: >-
+      Mutation XSS: no SAST rule can flag it, so results for this case must be reported
+      separately from the scanner metrics.
+  - id: CVE-2026-26331
+    project: yt-dlp/yt-dlp
+    cwe: [CWE-78]
+    cvss: 8.8
+    vulnerable_sha: "c105461647315f7f479091194944713b392ca729"
+    fixed_sha: "1fbbe29b99dc61375bf6d786f824d9fcf6ea9c1a"
+    why: >-
+      The fix spans four source files, the widest of the five. Tests whether a model can
+      produce a multi-file patch with no tools, and is the reference point for prompt v2.
+  - id: CVE-2026-32714
+    project: scitokens/scitokens
+    cwe: [CWE-89]
+    cvss: 9.8
+    vulnerable_sha: "66b075c35da18f8364276553513a53c596b4b8e3"
+    fixed_sha: "3dba108853f2f4a6c0f2325c03779bf083c41cf2"
+    why: >-
+      Six security tests make partial fixes visible. str.format() SQL is a pattern scanners
+      recognize, so this case can measure 'scanner quiet but still vulnerable', the
+      counterpart to justhtml.
+  - id: CVE-2026-33175
+    project: jupyterhub/oauthenticator
+    cwe: [CWE-287, CWE-290]
+    cvss: 8.8
+    vulnerable_sha: "f0c7002dc36e41efae0f674033cf7888a21d96f9^"
+    fixed_sha: "f0c7002dc36e41efae0f674033cf7888a21d96f9"
+    why: >-
+      No dangerous code pattern at all, just a missing check. Scanners cannot flag it, and a
+      model has to understand the advisory to know what to verify.
