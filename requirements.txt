@@ -32,3 +32,8 @@ httpx==0.28.1
 langchain==0.3.14
 langchain-ollama==0.2.2
 langchain-core==0.3.29
+
+# ============================================
+# Harness (benchmarks/cves.yaml)
+# ============================================
+PyYAML==6.0.3

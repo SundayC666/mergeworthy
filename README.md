@@ -1,6 +1,6 @@
 # Security Automation Platform
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)
+![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green?logo=fastapi)
 ![Security](https://img.shields.io/badge/Security-NVD%20CVE-red?logo=shield)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -72,7 +72,7 @@ A security tool for CVE vulnerability lookup. Uses **CPE-based search** against 
 
 | Category | Technologies |
 |----------|-------------|
-| Backend | Python 3.9+, FastAPI, Pydantic |
+| Backend | Python 3.12, FastAPI, Pydantic |
 | LLM (Optional) | LangChain + Ollama (local inference) |
 | Frontend | HTML5, CSS3, Vanilla JavaScript |
 
