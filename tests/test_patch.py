@@ -210,3 +210,22 @@ def test_apply_flags_patches_that_touch_tests(fake_case, tmp_path):
     diff = GOOD_DIFF.replace("pkg/mod.py", "tests/test_mod.py")
     r = apply_reply(fake_case, diff, tmp_path / "p.patch")
     assert r.touches_tests
+
+
+def test_whitespace_only_mismatch_is_rejected_but_flagged(fake_case, tmp_path):
+    # Strict apply is the measurement (a real patch bot would reject this too), but we
+    # also record whether git would have accepted it with --ignore-whitespace, so the
+    # "formatting vs wrong fix" split is available without rerunning anything.
+    # git's --ignore-whitespace forgives indentation differences in context lines but
+    # NOT trailing whitespace (checked experimentally, 2026-10-18), so the flag is a
+    # narrow "indentation was off" signal, not "any whitespace".
+    sloppy = GOOD_DIFF.replace('     """A class."""', '      """A class."""')  # one extra indent
+    r = apply_reply(fake_case, sloppy, tmp_path / "p.patch")
+    assert not r.applied and r.reason == "git-apply-failed"
+    assert r.would_apply_ignoring_whitespace is True
+
+
+def test_real_context_mismatch_is_not_flagged_as_whitespace(fake_case, tmp_path):
+    bad = GOOD_DIFF.replace("-    return 1", "-    return 999")
+    r = apply_reply(fake_case, bad, tmp_path / "p.patch")
+    assert r.would_apply_ignoring_whitespace is False

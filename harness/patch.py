@@ -209,6 +209,10 @@ class ApplyResult:
     diff: str | None
     files: list[str]
     touches_tests: bool
+    # Only meaningful when reason == "git-apply-failed": would `--ignore-whitespace`
+    # have accepted it? Recorded, never used for the outcome (strict apply is the
+    # measurement), so the "formatting vs wrong fix" split exists without a rerun.
+    would_apply_ignoring_whitespace: bool = False
 
     @property
     def outcome(self) -> str:
@@ -239,7 +243,20 @@ def apply_reply(case: Case, reply: str, patch_path: Path) -> ApplyResult:
         check=False,
     )
     if result.returncode != 0:
+        lenient = subprocess.run(
+            ["git", "apply", "--check", "--recount", "--ignore-whitespace", str(patch_path)],
+            cwd=case.repo_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         return ApplyResult(
-            False, "git-apply-failed", result.stderr.strip(), diff, files, touches_tests
+            False,
+            "git-apply-failed",
+            result.stderr.strip(),
+            diff,
+            files,
+            touches_tests,
+            would_apply_ignoring_whitespace=lenient.returncode == 0,
         )
     return ApplyResult(True, "", "", diff, files, touches_tests)

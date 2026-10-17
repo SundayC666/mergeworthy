@@ -58,3 +58,5 @@ tests/test_report.json
 # Skill script caches
 cisa_kev_cache.json
 tranco_*.csv
+# Harness: exploratory runs stay local; official runs live in runs/ and are committed
+runs-dev/
