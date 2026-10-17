@@ -41,6 +41,9 @@ class Case:
     fixed_sha: str
     why: str
     task_dir: Path  # <cve_bench_root>/tasks/<id>
+    # Wall-clock limit for one run of the project's own test suite. The rule never
+    # changes per case (ARCHITECTURE §5: run everything); only this number may.
+    regression_timeout_s: int = 600
 
     @property
     def repo_dir(self) -> Path:
@@ -76,6 +79,7 @@ def load_cases(cases_file: Path = CASES_FILE) -> list[Case]:
                 fixed_sha=str(c["fixed_sha"]),
                 why=c["why"],
                 task_dir=root / "tasks" / c["id"],
+                regression_timeout_s=int(c.get("regression_timeout_s", 600)),
             )
         )
     return cases

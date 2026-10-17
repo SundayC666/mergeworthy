@@ -25,6 +25,7 @@ import time
 import traceback
 from dataclasses import asdict
 from datetime import UTC, datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -38,15 +39,19 @@ from harness.llm import (
 )
 from harness.patch import PROMPT_VERSION, apply_reply, build_prompt_v1, load_target
 from harness.setup_case import REPO_ROOT, Case, load_cases, run_security_tests, setup
+from harness.verify import classify, run_regression_tests
 
+# Official runs are committed; exploratory runs (prompt tweaks, smoke tests) go to
+# runs-dev/, which is gitignored, so they never mix with the results table.
 RUNS_DIR = REPO_ROOT / "runs"
+DEV_RUNS_DIR = REPO_ROOT / "runs-dev"
 
 
 def _slug(text: str) -> str:
     return "".join(c if c.isalnum() or c in "-." else "_" for c in text)
 
 
-def run_one(case: Case, model: str, provider: str | None) -> dict:
+def run_one(case: Case, model: str, provider: str | None, runs_dir: Path = RUNS_DIR) -> dict:
     """Run one case through one model. Raises BudgetExhausted BEFORE creating a run
     folder when the gateway budget is too low; every other failure lands in the record."""
     cfg = load_model_config(model, provider)
@@ -54,7 +59,7 @@ def run_one(case: Case, model: str, provider: str | None) -> dict:
 
     started = datetime.now(UTC)
     run_id = f"{started:%Y%m%dT%H%M%SZ}-{_slug(case.id)}-{_slug(model)}"
-    run_dir = RUNS_DIR / run_id
+    run_dir = runs_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
 
     record: dict = {
@@ -74,6 +79,16 @@ def run_one(case: Case, model: str, provider: str | None) -> dict:
     try:
         setup(case)
         record["setup_s"] = round(time.monotonic() - t0, 1)
+
+        # Baseline BEFORE the patch: which of the project's own tests pass right now.
+        # Only these can later count as "broken" (ARCHITECTURE §5, decision 2026-10-18).
+        baseline = run_regression_tests(case, run_dir / "regression_baseline.json")
+        record["regression_baseline"] = {
+            "total": baseline.total,
+            "passed": len(baseline.passed_ids),
+            "not_passed": sorted(baseline.not_passed_ids),
+            "duration_s": round(baseline.duration_s, 1),
+        }
 
         advisory, target, snippet = load_target(case)
         system, user = build_prompt_v1(advisory, target, snippet)
@@ -103,14 +118,23 @@ def run_one(case: Case, model: str, provider: str | None) -> dict:
             "detail": applied.detail,
             "files": applied.files,
             "touches_tests": applied.touches_tests,
+            "would_apply_ignoring_whitespace": applied.would_apply_ignoring_whitespace,
         }
         if not applied.applied:
-            record["outcome"] = "not-applied"
+            verdict = classify(False, None, baseline, None)
         else:
             sec = run_security_tests(case, run_dir / "security_report.json")
             record["security_tests"] = {**asdict(sec), "all_passed": sec.all_passed}
-            record["outcome"] = "security-pass" if sec.all_passed else "security-fail"
-            record["regression_tests"] = "not run yet (verify.py pending)"
+            after = run_regression_tests(case, run_dir / "regression_after.json")
+            record["regression_after"] = {
+                "total": after.total,
+                "passed": len(after.passed_ids),
+                "not_passed": sorted(after.not_passed_ids),
+                "duration_s": round(after.duration_s, 1),
+            }
+            verdict = classify(True, sec, baseline, after)
+        record["outcome"] = verdict.outcome
+        record["verdict"] = verdict.as_record()
     except Exception as exc:  # noqa: BLE001 - every failure must land in the record
         record["error"] = f"{type(exc).__name__}: {exc}"
         if getattr(exc, "usage", None):  # an empty reply still consumed tokens
@@ -140,7 +164,13 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="default: HARNESS_PROVIDER from .env, else gateway",
     )
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="write to runs-dev/ (gitignored) instead of runs/; use for smoke tests",
+    )
     args = parser.parse_args(argv)
+    runs_dir = DEV_RUNS_DIR if args.dev else RUNS_DIR
 
     load_dotenv(REPO_ROOT / ".env")
     cases = load_cases()
@@ -152,7 +182,7 @@ def main(argv: list[str] | None = None) -> int:
     exit_code = 0
     for i, case in enumerate(cases):
         try:
-            rec = run_one(case, args.model, args.provider)
+            rec = run_one(case, args.model, args.provider, runs_dir)
         except BudgetExhausted as exc:
             remaining = ", ".join(c.id for c in cases[i:])
             print(f"STOP: {exc}\n      not run: {remaining}", file=sys.stderr)
