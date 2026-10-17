@@ -34,6 +34,7 @@ langchain-ollama==0.2.2
 langchain-core==0.3.29
 
 # ============================================
-# Harness (benchmarks/cves.yaml)
+# Harness (benchmarks/cves.yaml, harness/)
 # ============================================
 PyYAML==6.0.3
+openai==3.30.0
