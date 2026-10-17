@@ -24,7 +24,7 @@ import sys
 import time
 import traceback
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from dotenv import load_dotenv
 
@@ -52,7 +52,7 @@ def run_one(case: Case, model: str, provider: str | None) -> dict:
     cfg = load_model_config(model, provider)
     budget_before = assert_budget(cfg)  # fail closed before spending anything
 
-    started = datetime.now(timezone.utc)
+    started = datetime.now(UTC)
     run_id = f"{started:%Y%m%dT%H%M%SZ}-{_slug(case.id)}-{_slug(model)}"
     run_dir = RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -134,8 +134,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--case", required=True, help="case id from benchmarks/cves.yaml, or 'all'")
     parser.add_argument("--model", required=True, help="model id as the provider knows it")
-    parser.add_argument("--provider", choices=["gateway", "ollama"], default=None,
-                        help="default: HARNESS_PROVIDER from .env, else gateway")
+    parser.add_argument(
+        "--provider",
+        choices=["gateway", "ollama"],
+        default=None,
+        help="default: HARNESS_PROVIDER from .env, else gateway",
+    )
     args = parser.parse_args(argv)
 
     load_dotenv(REPO_ROOT / ".env")
@@ -156,7 +160,8 @@ def main(argv: list[str] | None = None) -> int:
         tokens = rec.get("model_call", {})
         print(
             f"{rec['case']:<22} {rec['model']:<16} {rec['outcome']:<14} "
-            f"{rec['total_s']:>6}s  in={tokens.get('prompt_tokens')} out={tokens.get('completion_tokens')}"
+            f"{rec['total_s']:>6}s  in={tokens.get('prompt_tokens')} "
+            f"out={tokens.get('completion_tokens')}"
             + (f"  apply:{rec['apply']['reason']}" if rec.get("apply", {}).get("reason") else "")
             + (f"  ERROR {rec['error']}" if "error" in rec else "")
         )

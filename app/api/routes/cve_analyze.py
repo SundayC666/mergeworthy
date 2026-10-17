@@ -7,35 +7,29 @@ Security: Input sanitization against OWASP Top 10 attacks
 Rate limiting: 30 requests/minute per IP
 """
 
-import re
 import logging
-from typing import Optional, List
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-limiter = Limiter(key_func=get_remote_address)
-
-from app.core.os_detector import detect_os_from_user_agent
 from app.core.input_sanitizer import (
     sanitize_query,
     validate_limit,
-    log_security_event,
-    escape_for_display
 )
+from app.core.os_detector import detect_os_from_user_agent
+from app.core.sla_tracker import get_sla_tracker
 from app.services.cve_collector import CVEDataCollector, NVDLookupError
-from app.services.llm_service import get_llm_service, check_llm_status
-from app.core.sla_tracker import get_sla_tracker, SLAStatus
+from app.services.llm_service import check_llm_status, get_llm_service
 
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
 # Fail closed: if NVD cannot be queried, say so. An upstream failure must
 # never be presented as "no vulnerabilities found".
 NVD_UNAVAILABLE_DETAIL = (
-    "CVE lookup failed: NVD is unavailable, so the result is unknown. "
-    "Please try again later."
+    "CVE lookup failed: NVD is unavailable, so the result is unknown. Please try again later."
 )
 logger = logging.getLogger(__name__)
 
@@ -114,10 +108,11 @@ OS_KEYWORD_MAPPING = {
 
 class CVEAnalyzeRequest(BaseModel):
     """Request model for CVE analysis with input validation"""
+
     query: str
     limit: int = 10
 
-    @field_validator('query')
+    @field_validator("query")
     @classmethod
     def validate_query(cls, v):
         """Validate and sanitize query input"""
@@ -126,7 +121,7 @@ class CVEAnalyzeRequest(BaseModel):
             raise ValueError(error)
         return sanitized
 
-    @field_validator('limit')
+    @field_validator("limit")
     @classmethod
     def validate_limit_field(cls, v):
         """Validate limit parameter"""
@@ -135,50 +130,54 @@ class CVEAnalyzeRequest(BaseModel):
 
 class CVEReference(BaseModel):
     """CVE Reference link"""
+
     url: str
     source: str  # "official" (from CVE/NVD), "vendor" (from vendor security page)
-    tags: List[str] = []  # e.g., ["Patch", "Vendor Advisory"]
+    tags: list[str] = []  # e.g., ["Patch", "Vendor Advisory"]
 
 
 class SLAInfoResponse(BaseModel):
     """SLA information for a CVE"""
+
     sla_days: int
-    deadline: Optional[str] = None
-    days_remaining: Optional[int] = None
-    hours_remaining: Optional[int] = None
+    deadline: str | None = None
+    days_remaining: int | None = None
+    hours_remaining: int | None = None
     status: str  # "on_track", "due_soon", "overdue", "unknown"
     status_label: str
     priority_rank: int
     priority_label: str
     policy_reference: str
     is_kev: bool
-    recommended_action: Optional[str] = None
+    recommended_action: str | None = None
 
 
 class CVEFinding(BaseModel):
     """Individual CVE finding"""
+
     cve: str
     title: str
     description: str
     severity: str
-    cvss_score: Optional[float]
+    cvss_score: float | None
     published_date: str
-    last_modified_date: Optional[str] = None
+    last_modified_date: str | None = None
     is_exploited: bool
-    patch_link: Optional[str]
-    nvd_link: Optional[str] = None  # Link to NVD database
-    references: List[CVEReference] = []  # Official references from CVE
-    affected_versions: List[str] = []  # Detailed affected version info from CPE
-    os_tags: List[str]
-    note: Optional[str] = None
-    remediation_summary: Optional[str] = None  # Short summary for collapsed view
-    source_type: Optional[str] = None  # "os", "browser", or None for general
-    sla_info: Optional[SLAInfoResponse] = None  # SLA tracking information
+    patch_link: str | None
+    nvd_link: str | None = None  # Link to NVD database
+    references: list[CVEReference] = []  # Official references from CVE
+    affected_versions: list[str] = []  # Detailed affected version info from CPE
+    os_tags: list[str]
+    note: str | None = None
+    remediation_summary: str | None = None  # Short summary for collapsed view
+    source_type: str | None = None  # "os", "browser", or None for general
+    sla_info: SLAInfoResponse | None = None  # SLA tracking information
 
 
 class LLMAnalysis(BaseModel):
     """LLM-powered analysis result"""
-    affects_user: Optional[bool] = None
+
+    affects_user: bool | None = None
     confidence: str = "low"
     explanation: str = ""
     recommended_action: str = ""
@@ -187,12 +186,14 @@ class LLMAnalysis(BaseModel):
 
 class CVEResultGroup(BaseModel):
     """Group of CVE findings"""
-    findings: List[CVEFinding]
-    action_plan: List[str] = []
+
+    findings: list[CVEFinding]
+    action_plan: list[str] = []
 
 
 class SLASummary(BaseModel):
     """SLA compliance summary"""
+
     total: int = 0
     on_track: int = 0
     due_soon: int = 0
@@ -204,6 +205,7 @@ class SLASummary(BaseModel):
 
 class CVEAnalyzeResponse(BaseModel):
     """Response model for CVE analysis"""
+
     detected_os: dict
     your_system: CVEResultGroup
     other_systems: CVEResultGroup
@@ -211,11 +213,12 @@ class CVEAnalyzeResponse(BaseModel):
     search_description: str  # Human-readable search description
     total_results: int
     llm_available: bool = False  # Whether LLM analysis is available
-    sla_summary: Optional[SLASummary] = None  # SLA compliance summary
+    sla_summary: SLASummary | None = None  # SLA compliance summary
 
 
 class LLMStatusResponse(BaseModel):
     """LLM service status"""
+
     available: bool
     model: str
     base_url: str
@@ -231,17 +234,19 @@ async def get_llm_status(request: Request) -> LLMStatusResponse:
 
 class CVEDeepAnalysisRequest(BaseModel):
     """Request for LLM-powered deep CVE analysis"""
+
     cve_id: str
     description: str
     severity: str
     user_system: str  # e.g., "Windows 11 22H2"
-    affected_versions: List[str] = []
+    affected_versions: list[str] = []
 
 
 class CVEDeepAnalysisResponse(BaseModel):
     """LLM-powered deep analysis result"""
+
     cve_id: str
-    affects_user: Optional[bool]
+    affects_user: bool | None
     confidence: str
     explanation: str
     recommended_action: str
@@ -251,7 +256,9 @@ class CVEDeepAnalysisResponse(BaseModel):
 
 @router.post("/cve/deep-analyze", response_model=CVEDeepAnalysisResponse)
 @limiter.limit("10/minute")
-async def deep_analyze_cve(request: Request, body: CVEDeepAnalysisRequest) -> CVEDeepAnalysisResponse:
+async def deep_analyze_cve(
+    request: Request, body: CVEDeepAnalysisRequest
+) -> CVEDeepAnalysisResponse:
     """
     Use LLM to perform deep analysis of a specific CVE.
 
@@ -267,7 +274,7 @@ async def deep_analyze_cve(request: Request, body: CVEDeepAnalysisRequest) -> CV
         description=body.description,
         severity=body.severity,
         user_system=body.user_system,
-        affected_versions=body.affected_versions
+        affected_versions=body.affected_versions,
     )
 
     return CVEDeepAnalysisResponse(
@@ -277,7 +284,7 @@ async def deep_analyze_cve(request: Request, body: CVEDeepAnalysisRequest) -> CV
         explanation=result.get("explanation", ""),
         recommended_action=result.get("recommended_action", ""),
         priority=result.get("priority", "medium"),
-        llm_used=await llm_service.is_available()
+        llm_used=await llm_service.is_available(),
     )
 
 
@@ -298,7 +305,6 @@ async def get_latest_cves(request: Request, limit: int = 5) -> CVEAnalyzeRespons
     os_info = detect_os_from_user_agent(user_agent)
 
     your_system_findings = []
-    other_system_findings = []
     search_description = "Latest vulnerabilities"
 
     # If we detected a system, fetch CVEs from NVD API
@@ -361,13 +367,19 @@ async def get_latest_cves(request: Request, limit: int = 5) -> CVEAnalyzeRespons
         all_cves = os_cves + browser_cves
 
         if all_cves:
-            your_system_findings = _filter_and_sort_findings([
-                _cve_to_finding(cve, source_type=cve.get("_source_type")) for cve in all_cves
-            ])[:limit]
+            your_system_findings = _filter_and_sort_findings(
+                [_cve_to_finding(cve, source_type=cve.get("_source_type")) for cve in all_cves]
+            )[:limit]
             # Build search description with OS and browser info
             if os_info.browser:
-                browser_str = f"{os_info.browser.name} {os_info.browser.version}" if os_info.browser.version else os_info.browser.name
-                search_description = f"Latest vulnerabilities for {os_info.normalized} + {browser_str}"
+                browser_str = (
+                    f"{os_info.browser.name} {os_info.browser.version}"
+                    if os_info.browser.version
+                    else os_info.browser.name
+                )
+                search_description = (
+                    f"Latest vulnerabilities for {os_info.normalized} + {browser_str}"
+                )
             else:
                 search_description = f"Latest vulnerabilities for {os_info.normalized}"
 
@@ -382,19 +394,16 @@ async def get_latest_cves(request: Request, limit: int = 5) -> CVEAnalyzeRespons
             "family": os_info.family,
             "version": os_info.version,
             "normalized": os_info.normalized,
-            "tags": os_info.tags
+            "tags": os_info.tags,
         },
-        your_system=CVEResultGroup(
-            findings=your_system_findings,
-            action_plan=action_plan
-        ),
+        your_system=CVEResultGroup(findings=your_system_findings, action_plan=action_plan),
         other_systems=CVEResultGroup(
             findings=[]  # No "other" category - all results are for user's system
         ),
         query="(auto-detected)",
         search_description=search_description,
         total_results=len(your_system_findings),
-        sla_summary=sla_summary
+        sla_summary=sla_summary,
     )
 
 
@@ -411,9 +420,6 @@ async def analyze_cves(request: Request, body: CVEAnalyzeRequest) -> CVEAnalyzeR
     4. If OS-specific, queries NVD directly for accurate results
     5. Returns findings with remediation suggestions
     """
-    # Get client IP for security logging
-    client_ip = request.client.host if request.client else "unknown"
-
     # Query is already validated by Pydantic validator
     # Additional check for empty query after sanitization
     if not body.query or len(body.query.strip()) < 2:
@@ -424,7 +430,7 @@ async def analyze_cves(request: Request, body: CVEAnalyzeRequest) -> CVEAnalyzeR
     os_info = detect_os_from_user_agent(user_agent)
 
     # Normalize query: lowercase, collapse multiple spaces, strip
-    query_normalized = ' '.join(body.query.lower().split())
+    query_normalized = " ".join(body.query.lower().split())
 
     # Check if query mentions a specific OS - if so, query NVD directly
     # Sort by length (longest first) to match more specific keywords first
@@ -448,7 +454,11 @@ async def analyze_cves(request: Request, body: CVEAnalyzeRequest) -> CVEAnalyzeR
     collector = CVEDataCollector()
 
     # Use the keyword directly - CVEDataCollector handles CPE mapping internally
-    search_keyword = OS_KEYWORD_MAPPING.get(detected_os_keyword, body.query) if detected_os_keyword else body.query
+    search_keyword = (
+        OS_KEYWORD_MAPPING.get(detected_os_keyword, body.query)
+        if detected_os_keyword
+        else body.query
+    )
     logger.info(f"Searching NVD with CPE for: {search_keyword}")
 
     try:
@@ -458,11 +468,13 @@ async def analyze_cves(request: Request, body: CVEAnalyzeRequest) -> CVEAnalyzeR
         raise HTTPException(status_code=503, detail=NVD_UNAVAILABLE_DETAIL) from e
 
     if nvd_cves:
-        your_system_findings = _filter_and_sort_findings([
-            _cve_to_finding(cve) for cve in nvd_cves
-        ])[:body.limit]
+        your_system_findings = _filter_and_sort_findings(
+            [_cve_to_finding(cve) for cve in nvd_cves]
+        )[: body.limit]
         search_source = "nvd_cpe"
-        logger.info(f"Found {len(your_system_findings)} CVEs from NVD CPE search for: {search_keyword}")
+        logger.info(
+            f"Found {len(your_system_findings)} CVEs from NVD CPE search for: {search_keyword}"
+        )
 
     # Log search source for debugging
     logger.info(f"Search completed. Source: {search_source}, Results: {len(your_system_findings)}")
@@ -482,24 +494,24 @@ async def analyze_cves(request: Request, body: CVEAnalyzeRequest) -> CVEAnalyzeR
             "family": os_info.family,
             "version": os_info.version,
             "normalized": os_info.normalized,
-            "tags": os_info.tags
+            "tags": os_info.tags,
         },
         your_system=CVEResultGroup(
             findings=your_system_findings,
-            action_plan=action_plan  # Action plan is now for all CVEs
+            action_plan=action_plan,  # Action plan is now for all CVEs
         ),
-        other_systems=CVEResultGroup(
-            findings=other_system_findings
-        ),
+        other_systems=CVEResultGroup(findings=other_system_findings),
         query=body.query,
         search_description=search_description,
         total_results=len(your_system_findings) + len(other_system_findings),
         llm_available=llm_status.get("available", False),
-        sla_summary=sla_summary
+        sla_summary=sla_summary,
     )
 
 
-def _cve_to_finding(cve: dict, include_os_note: bool = False, source_type: Optional[str] = None) -> CVEFinding:
+def _cve_to_finding(
+    cve: dict, include_os_note: bool = False, source_type: str | None = None
+) -> CVEFinding:
     """Convert CVE dict to CVEFinding model with SLA information"""
     patch_links = cve.get("patch_links", [])
     os_tags = cve.get("os_tags", [])
@@ -526,7 +538,9 @@ def _cve_to_finding(cve: dict, include_os_note: bool = False, source_type: Optio
         desc_lower = cve.get("description", "").lower()
         if any(x in desc_lower for x in ["chrome", "firefox", "safari", "edge", "browser"]):
             source_type = "browser"
-        elif any(x in desc_lower for x in ["macos", "windows", "linux", "android", "ios", "kernel"]):
+        elif any(
+            x in desc_lower for x in ["macos", "windows", "linux", "android", "ios", "kernel"]
+        ):
             source_type = "os"
 
     # Build references list from CVE data
@@ -550,14 +564,18 @@ def _cve_to_finding(cve: dict, include_os_note: bool = False, source_type: Optio
             if not is_patch:
                 # Check URL for common patch indicators
                 url_lower = url.lower()
-                if any(x in url_lower for x in ["patch", "advisory", "security", "update", "bulletin"]):
+                if any(
+                    x in url_lower for x in ["patch", "advisory", "security", "update", "bulletin"]
+                ):
                     is_patch = True
 
-            references.append(CVEReference(
-                url=url,
-                source="official",  # From CVE/NVD database
-                tags=tags if tags else (["Vendor Advisory"] if is_patch else [])
-            ))
+            references.append(
+                CVEReference(
+                    url=url,
+                    source="official",  # From CVE/NVD database
+                    tags=tags if tags else (["Vendor Advisory"] if is_patch else []),
+                )
+            )
 
     # Get affected versions
     affected_versions = cve.get("affected_versions", [])
@@ -568,7 +586,7 @@ def _cve_to_finding(cve: dict, include_os_note: bool = False, source_type: Optio
         cve_id=cve_id,
         severity=severity,
         is_kev=is_exploited,  # KEV status from CISA
-        published_date=published_date
+        published_date=published_date,
     )
     sla_response = SLAInfoResponse(
         sla_days=sla_info.sla_days,
@@ -581,7 +599,7 @@ def _cve_to_finding(cve: dict, include_os_note: bool = False, source_type: Optio
         priority_label=sla_info.priority_label,
         policy_reference=sla_info.policy_reference,
         is_kev=sla_info.is_kev,
-        recommended_action=sla_info.recommended_action
+        recommended_action=sla_info.recommended_action,
     )
 
     return CVEFinding(
@@ -601,7 +619,7 @@ def _cve_to_finding(cve: dict, include_os_note: bool = False, source_type: Optio
         note=note,
         remediation_summary=remediation_summary,
         source_type=source_type,
-        sla_info=sla_response
+        sla_info=sla_response,
     )
 
 
@@ -639,7 +657,7 @@ def _is_valid_cve(finding: CVEFinding) -> bool:
         "reserved",
         "** reserved **",
         "this candidate has been reserved",
-        "this cve id has been rejected"
+        "this cve id has been rejected",
     ]
 
     desc_lower = finding.description.lower()
@@ -678,7 +696,10 @@ def _infer_severity_from_description(finding: CVEFinding) -> CVEFinding:
     # General severity keywords
     elif any(x in desc_lower for x in ["remote code execution", "rce", "arbitrary code"]):
         finding.severity = "CRITICAL"
-    elif any(x in desc_lower for x in ["heap overflow", "buffer overflow", "use after free", "out of bounds write"]):
+    elif any(
+        x in desc_lower
+        for x in ["heap overflow", "buffer overflow", "use after free", "out of bounds write"]
+    ):
         finding.severity = "HIGH"
     elif any(x in desc_lower for x in ["out of bounds read", "information disclosure"]):
         finding.severity = "MEDIUM"
@@ -688,7 +709,7 @@ def _infer_severity_from_description(finding: CVEFinding) -> CVEFinding:
     return finding
 
 
-def _filter_and_sort_findings(findings: List[CVEFinding]) -> List[CVEFinding]:
+def _filter_and_sort_findings(findings: list[CVEFinding]) -> list[CVEFinding]:
     """
     Filter invalid CVEs, deduplicate, and sort by priority (KEV first, then severity, then date).
 
@@ -737,14 +758,16 @@ def _filter_and_sort_findings(findings: List[CVEFinding]) -> List[CVEFinding]:
         status_priority = sla_status_order.get(sla_status, 3)
 
         # Tertiary sort: date (newest first)
-        date_key = "" if not f.published_date else "".join(chr(255 - ord(c)) for c in f.published_date)
+        date_key = (
+            "" if not f.published_date else "".join(chr(255 - ord(c)) for c in f.published_date)
+        )
 
         return (priority, status_priority, date_key)
 
     return sorted(valid_findings, key=sort_key)
 
 
-def _generate_customized_action_plan(findings: List[CVEFinding]) -> List[str]:
+def _generate_customized_action_plan(findings: list[CVEFinding]) -> list[str]:
     """
     Generate customized action plan for specific CVEs.
     Each action item is specific to a CVE with concrete remediation steps.
@@ -772,25 +795,24 @@ def _generate_cve_specific_action(cve: CVEFinding) -> str:
     # Determine urgency prefix
     if cve.is_exploited:
         prefix = f"🚨 {cve_id}"
-        urgency = "URGENT"
     elif severity == "CRITICAL":
         prefix = f"🔴 {cve_id}"
-        urgency = "CRITICAL"
     elif severity == "HIGH":
         prefix = f"🟠 {cve_id}"
-        urgency = "HIGH"
     elif severity == "MEDIUM":
         prefix = f"🟡 {cve_id}"
-        urgency = "MEDIUM"
     else:
         prefix = f"🔵 {cve_id}"
-        urgency = "LOW"
 
     # Analyze vulnerability type and generate specific action
     action_detail = ""
 
     # Remote Code Execution
-    if "remote code execution" in desc_lower or "rce" in desc_lower or "arbitrary code" in desc_lower:
+    if (
+        "remote code execution" in desc_lower
+        or "rce" in desc_lower
+        or "arbitrary code" in desc_lower
+    ):
         if cve.patch_link:
             action_detail = "RCE vulnerability - Apply patch and review network exposure"
         else:
@@ -804,7 +826,11 @@ def _generate_cve_specific_action(cve: CVEFinding) -> str:
             action_detail = "Privilege escalation - Review least-privilege policies"
 
     # Buffer Overflow
-    elif "buffer overflow" in desc_lower or "heap overflow" in desc_lower or "stack overflow" in desc_lower:
+    elif (
+        "buffer overflow" in desc_lower
+        or "heap overflow" in desc_lower
+        or "stack overflow" in desc_lower
+    ):
         if cve.patch_link:
             action_detail = "Memory corruption - Apply patch immediately"
         else:
@@ -819,7 +845,11 @@ def _generate_cve_specific_action(cve: CVEFinding) -> str:
         action_detail = "XSS vulnerability - Review output encoding and CSP headers"
 
     # Authentication/Authorization bypass
-    elif "authentication bypass" in desc_lower or "authorization bypass" in desc_lower or "auth bypass" in desc_lower:
+    elif (
+        "authentication bypass" in desc_lower
+        or "authorization bypass" in desc_lower
+        or "auth bypass" in desc_lower
+    ):
         if cve.patch_link:
             action_detail = "Auth bypass - Apply patch and review access logs"
         else:
@@ -833,7 +863,11 @@ def _generate_cve_specific_action(cve: CVEFinding) -> str:
             action_detail = "DoS vulnerability - Implement rate limiting and monitoring"
 
     # Information Disclosure
-    elif "information disclosure" in desc_lower or "sensitive information" in desc_lower or "data exposure" in desc_lower:
+    elif (
+        "information disclosure" in desc_lower
+        or "sensitive information" in desc_lower
+        or "data exposure" in desc_lower
+    ):
         action_detail = "Data exposure risk - Review data access controls and logging"
 
     # Use After Free
@@ -850,9 +884,9 @@ def _generate_cve_specific_action(cve: CVEFinding) -> str:
     # Default based on patch availability
     else:
         if cve.patch_link:
-            action_detail = f"Apply security update"
+            action_detail = "Apply security update"
         else:
-            action_detail = f"Monitor vendor for patch release"
+            action_detail = "Monitor vendor for patch release"
 
     # Add exploited warning
     if cve.is_exploited:
@@ -861,7 +895,7 @@ def _generate_cve_specific_action(cve: CVEFinding) -> str:
     return f"{prefix}: {action_detail}"
 
 
-def _calculate_sla_summary(findings: List[CVEFinding]) -> SLASummary:
+def _calculate_sla_summary(findings: list[CVEFinding]) -> SLASummary:
     """Calculate SLA compliance summary from findings"""
     summary = SLASummary(
         total=len(findings),
@@ -870,7 +904,7 @@ def _calculate_sla_summary(findings: List[CVEFinding]) -> SLASummary:
         overdue=0,
         unknown=0,
         kev_count=0,
-        compliance_rate=0.0
+        compliance_rate=0.0,
     )
 
     for finding in findings:

@@ -12,10 +12,9 @@ Security measures:
 7. Character whitelist validation
 """
 
-import re
 import html
 import logging
-from typing import Optional, Tuple
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -25,47 +24,43 @@ MIN_QUERY_LENGTH = 2
 
 # Whitelist pattern: alphanumeric, spaces, and common safe characters
 # Allows: letters, numbers, spaces, dots, hyphens, underscores
-SAFE_QUERY_PATTERN = re.compile(r'^[\w\s\.\-\,\:\;\(\)\/\@]+$', re.UNICODE)
+SAFE_QUERY_PATTERN = re.compile(r"^[\w\s\.\-\,\:\;\(\)\/\@]+$", re.UNICODE)
 
 # Dangerous patterns to detect and block
 DANGEROUS_PATTERNS = [
     # SQL Injection patterns
-    (r'(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|TRUNCATE)\b)', 'SQL keyword'),
-    (r'(--|;|\/\*|\*\/)', 'SQL comment/terminator'),
-    (r'(\bOR\b\s+\d+\s*=\s*\d+)', 'SQL injection OR'),
-    (r'(\bAND\b\s+\d+\s*=\s*\d+)', 'SQL injection AND'),
-    (r"('|\"|`)\s*(OR|AND)\s*('|\"|`)", 'SQL injection quote'),
-
+    (r"(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|TRUNCATE)\b)", "SQL keyword"),
+    (r"(--|;|\/\*|\*\/)", "SQL comment/terminator"),
+    (r"(\bOR\b\s+\d+\s*=\s*\d+)", "SQL injection OR"),
+    (r"(\bAND\b\s+\d+\s*=\s*\d+)", "SQL injection AND"),
+    (r"('|\"|`)\s*(OR|AND)\s*('|\"|`)", "SQL injection quote"),
     # Command Injection patterns
-    (r'(\||&&|\$\(|`|;|\n|\r)', 'Command injection'),
-    (r'(\b(cat|ls|rm|mv|cp|chmod|chown|wget|curl|bash|sh|python|perl|ruby|nc|netcat)\b)', 'Shell command'),
-
+    (r"(\||&&|\$\(|`|;|\n|\r)", "Command injection"),
+    (
+        r"(\b(cat|ls|rm|mv|cp|chmod|chown|wget|curl|bash|sh|python|perl|ruby|nc|netcat)\b)",
+        "Shell command",
+    ),
     # Path Traversal patterns
-    (r'(\.\.\/|\.\.\\|%2e%2e%2f|%2e%2e\/|\.\.%2f|%2e%2e%5c)', 'Path traversal'),
-
+    (r"(\.\.\/|\.\.\\|%2e%2e%2f|%2e%2e\/|\.\.%2f|%2e%2e%5c)", "Path traversal"),
     # XSS patterns
-    (r'(<\s*script|<\s*img|<\s*iframe|<\s*object|<\s*embed|<\s*svg|<\s*on\w+\s*=)', 'XSS tag'),
-    (r'(javascript:|vbscript:|data:text\/html)', 'XSS protocol'),
-    (r'(on\w+\s*=\s*["\'])', 'XSS event handler'),
-
+    (r"(<\s*script|<\s*img|<\s*iframe|<\s*object|<\s*embed|<\s*svg|<\s*on\w+\s*=)", "XSS tag"),
+    (r"(javascript:|vbscript:|data:text\/html)", "XSS protocol"),
+    (r'(on\w+\s*=\s*["\'])', "XSS event handler"),
     # LDAP Injection patterns
-    (r'(\*\)|\)\(|\(\||\(&)', 'LDAP injection'),
-
+    (r"(\*\)|\)\(|\(\||\(&)", "LDAP injection"),
     # Template Injection patterns
-    (r'(\{\{|\}\}|\{%|%\}|\$\{)', 'Template injection'),
-
+    (r"(\{\{|\}\}|\{%|%\}|\$\{)", "Template injection"),
     # XML/XXE patterns
-    (r'(<!ENTITY|<!DOCTYPE.*\[)', 'XXE injection'),
+    (r"(<!ENTITY|<!DOCTYPE.*\[)", "XXE injection"),
 ]
 
 # Compile patterns for efficiency
 COMPILED_DANGEROUS_PATTERNS = [
-    (re.compile(pattern, re.IGNORECASE), name)
-    for pattern, name in DANGEROUS_PATTERNS
+    (re.compile(pattern, re.IGNORECASE), name) for pattern, name in DANGEROUS_PATTERNS
 ]
 
 
-def sanitize_query(query: str) -> Tuple[str, Optional[str]]:
+def sanitize_query(query: str) -> tuple[str, str | None]:
     """
     Sanitize and validate a search query input.
 
@@ -90,14 +85,16 @@ def sanitize_query(query: str) -> Tuple[str, Optional[str]]:
     # Check for dangerous patterns
     for pattern, threat_name in COMPILED_DANGEROUS_PATTERNS:
         if pattern.search(query):
-            logger.warning(f"Blocked potentially malicious input: {threat_name} - Query: {query[:50]}...")
+            logger.warning(
+                f"Blocked potentially malicious input: {threat_name} - Query: {query[:50]}..."
+            )
             return "", "Invalid characters detected in query"
 
     # HTML encode to prevent XSS when displayed
     sanitized = html.escape(query)
 
     # Normalize whitespace (collapse multiple spaces)
-    sanitized = ' '.join(sanitized.split())
+    sanitized = " ".join(sanitized.split())
 
     return sanitized, None
 
@@ -136,7 +133,7 @@ def is_valid_cve_id(cve_id: str) -> bool:
     """
     if not cve_id:
         return False
-    pattern = re.compile(r'^CVE-\d{4}-\d{4,}$', re.IGNORECASE)
+    pattern = re.compile(r"^CVE-\d{4}-\d{4,}$", re.IGNORECASE)
     return bool(pattern.match(cve_id))
 
 

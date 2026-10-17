@@ -4,27 +4,28 @@ Parses the User-Agent string to identify the client's operating system
 """
 
 import re
-from typing import Optional, List
 from dataclasses import dataclass
 
 
 @dataclass
 class BrowserInfo:
     """Detected browser information"""
-    name: str                   # Browser name (Chrome, Firefox, Safari, Edge)
-    version: Optional[str]      # Browser version
-    engine: Optional[str]       # Rendering engine (Blink, Gecko, WebKit)
+
+    name: str  # Browser name (Chrome, Firefox, Safari, Edge)
+    version: str | None  # Browser version
+    engine: str | None  # Rendering engine (Blink, Gecko, WebKit)
 
 
 @dataclass
 class OSInfo:
     """Detected OS information"""
-    raw: str                    # Original User-Agent string
-    family: str                 # OS family (Windows, macOS, Linux, iOS, Android)
-    version: Optional[str]      # OS version if detected
-    normalized: str             # Human-readable name for display
-    tags: List[str]             # Tags for CVE matching (e.g., ['windows', 'windows_10'])
-    browser: Optional[BrowserInfo] = None  # Detected browser info
+
+    raw: str  # Original User-Agent string
+    family: str  # OS family (Windows, macOS, Linux, iOS, Android)
+    version: str | None  # OS version if detected
+    normalized: str  # Human-readable name for display
+    tags: list[str]  # Tags for CVE matching (e.g., ['windows', 'windows_10'])
+    browser: BrowserInfo | None = None  # Detected browser info
 
 
 def detect_os_from_user_agent(user_agent: str) -> OSInfo:
@@ -38,13 +39,7 @@ def detect_os_from_user_agent(user_agent: str) -> OSInfo:
         OSInfo with detected OS details and tags for CVE filtering
     """
     if not user_agent:
-        return OSInfo(
-            raw="",
-            family="Unknown",
-            version=None,
-            normalized="Unknown System",
-            tags=[]
-        )
+        return OSInfo(raw="", family="Unknown", version=None, normalized="Unknown System", tags=[])
 
     ua = user_agent.lower()
 
@@ -98,7 +93,7 @@ def detect_os_from_user_agent(user_agent: str) -> OSInfo:
             version=version,
             normalized=normalized,
             tags=tags,
-            browser=browser
+            browser=browser,
         )
 
     # iOS detection - Must be checked BEFORE macOS because iOS User-Agent contains "like Mac OS X"
@@ -118,7 +113,7 @@ def detect_os_from_user_agent(user_agent: str) -> OSInfo:
             version=version,
             normalized=f"iOS ({device})" if version is None else f"iOS {version} ({device})",
             tags=tags,
-            browser=browser
+            browser=browser,
         )
 
     # macOS detection
@@ -170,7 +165,7 @@ def detect_os_from_user_agent(user_agent: str) -> OSInfo:
             version=version,
             normalized=normalized,
             tags=tags,
-            browser=browser
+            browser=browser,
         )
 
     # Android detection
@@ -191,7 +186,7 @@ def detect_os_from_user_agent(user_agent: str) -> OSInfo:
             version=version,
             normalized=f"Android {version}" if version else "Android",
             tags=tags,
-            browser=browser
+            browser=browser,
         )
 
     # Linux detection
@@ -224,7 +219,7 @@ def detect_os_from_user_agent(user_agent: str) -> OSInfo:
             version=None,
             normalized=distro if distro else "Linux",
             tags=tags,
-            browser=browser
+            browser=browser,
         )
 
     # ChromeOS detection
@@ -235,7 +230,7 @@ def detect_os_from_user_agent(user_agent: str) -> OSInfo:
             version=None,
             normalized="ChromeOS",
             tags=["chromeos", "linux"],
-            browser=browser
+            browser=browser,
         )
 
     # FreeBSD detection
@@ -246,7 +241,7 @@ def detect_os_from_user_agent(user_agent: str) -> OSInfo:
             version=None,
             normalized="FreeBSD",
             tags=["freebsd", "bsd", "unix"],
-            browser=browser
+            browser=browser,
         )
 
     # Unknown OS
@@ -256,7 +251,7 @@ def detect_os_from_user_agent(user_agent: str) -> OSInfo:
         version=None,
         normalized="Unknown System",
         tags=[],
-        browser=browser
+        browser=browser,
     )
 
 
@@ -275,7 +270,7 @@ def _is_windows_11(user_agent: str) -> bool:
     return False
 
 
-def detect_browser(user_agent: str) -> Optional[BrowserInfo]:
+def detect_browser(user_agent: str) -> BrowserInfo | None:
     """
     Detect browser from User-Agent string
     """
@@ -286,31 +281,31 @@ def detect_browser(user_agent: str) -> Optional[BrowserInfo]:
 
     # Edge (must check before Chrome as Edge includes Chrome in UA)
     if "edg/" in ua or "edge/" in ua:
-        match = re.search(r'edg[e]?/(\d+)', ua)
+        match = re.search(r"edg[e]?/(\d+)", ua)
         version = match.group(1) if match else None
         return BrowserInfo(name="Edge", version=version, engine="Blink")
 
     # Chrome (must check before Safari)
     if "chrome/" in ua and "chromium" not in ua:
-        match = re.search(r'chrome/(\d+)', ua)
+        match = re.search(r"chrome/(\d+)", ua)
         version = match.group(1) if match else None
         return BrowserInfo(name="Chrome", version=version, engine="Blink")
 
     # Firefox
     if "firefox/" in ua:
-        match = re.search(r'firefox/(\d+)', ua)
+        match = re.search(r"firefox/(\d+)", ua)
         version = match.group(1) if match else None
         return BrowserInfo(name="Firefox", version=version, engine="Gecko")
 
     # Safari (check after Chrome/Edge)
     if "safari/" in ua and "chrome" not in ua:
-        match = re.search(r'version/(\d+)', ua)
+        match = re.search(r"version/(\d+)", ua)
         version = match.group(1) if match else None
         return BrowserInfo(name="Safari", version=version, engine="WebKit")
 
     # Opera
     if "opr/" in ua or "opera" in ua:
-        match = re.search(r'(?:opr|opera)/(\d+)', ua)
+        match = re.search(r"(?:opr|opera)/(\d+)", ua)
         version = match.group(1) if match else None
         return BrowserInfo(name="Opera", version=version, engine="Blink")
 
@@ -320,7 +315,7 @@ def detect_browser(user_agent: str) -> Optional[BrowserInfo]:
 
     # Vivaldi
     if "vivaldi" in ua:
-        match = re.search(r'vivaldi/(\d+)', ua)
+        match = re.search(r"vivaldi/(\d+)", ua)
         version = match.group(1) if match else None
         return BrowserInfo(name="Vivaldi", version=version, engine="Blink")
 

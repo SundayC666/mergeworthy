@@ -3,33 +3,33 @@ OS Detection API Endpoint
 Detects client operating system and browser from HTTP User-Agent header
 """
 
-from typing import Optional, List
-
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-
-from app.core.os_detector import detect_os_from_user_agent, detect_browser, OSInfo
-
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+
+from app.core.os_detector import OSInfo, detect_browser, detect_os_from_user_agent
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
+
 class BrowserDetectResponse(BaseModel):
     """Response model for browser detection"""
-    name: Optional[str]
-    version: Optional[str]
-    engine: Optional[str]
+
+    name: str | None
+    version: str | None
+    engine: str | None
 
 
 class OSDetectResponse(BaseModel):
     """Response model for OS detection"""
+
     family: str
-    version: Optional[str]
+    version: str | None
     normalized: str
-    tags: List[str]
-    browser: Optional[BrowserDetectResponse] = None
+    tags: list[str]
+    browser: BrowserDetectResponse | None = None
 
 
 @router.get("/os/detect", response_model=OSDetectResponse)
@@ -53,9 +53,7 @@ async def detect_os(request: Request) -> OSDetectResponse:
     browser_response = None
     if browser_info:
         browser_response = BrowserDetectResponse(
-            name=browser_info.name,
-            version=browser_info.version,
-            engine=browser_info.engine
+            name=browser_info.name, version=browser_info.version, engine=browser_info.engine
         )
 
     return OSDetectResponse(
@@ -63,5 +61,5 @@ async def detect_os(request: Request) -> OSDetectResponse:
         version=os_info.version,
         normalized=os_info.normalized,
         tags=os_info.tags,
-        browser=browser_response
+        browser=browser_response,
     )

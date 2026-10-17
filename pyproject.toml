@@ -1,0 +1,24 @@
+[tool.ruff]
+# Lint configuration only; packaging still uses requirements*.txt.
+target-version = "py312"
+line-length = 100
+# tests/comprehensive_test.py is a legacy manual smoke script (not collected by pytest);
+# it is excluded until the web-app test suite replaces it, then it gets deleted.
+extend-exclude = ["venv", "runs", "tests/comprehensive_test.py"]
+
+[tool.ruff.lint]
+# An explicit, small rule set so that "CI is green" means something specific:
+#   E/F  pyflakes + pycodestyle errors (undefined names, unused imports, real mistakes)
+#   I    import ordering
+#   B    flake8-bugbear (likely bugs: mutable defaults, raise-without-from, ...)
+#   UP   pyupgrade (syntax the 3.12 target makes obsolete)
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Package __init__ files re-export their modules on purpose.
+"app/api/routes/__init__.py" = ["F401"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

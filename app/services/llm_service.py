@@ -7,12 +7,11 @@ Uses llama3.2:3b for fast, stable responses
 
 import asyncio
 import logging
-from typing import Optional, Dict, Any, List
-from functools import lru_cache
+from typing import Any
 
-from langchain_ollama import OllamaLLM
-from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+from langchain_ollama import OllamaLLM
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +37,11 @@ class LLMService:
 
     def __init__(self, model: str = None):
         self.model = model or self.DEFAULT_MODEL
-        self._llm: Optional[OllamaLLM] = None
-        self._available: Optional[bool] = None
+        self._llm: OllamaLLM | None = None
+        self._available: bool | None = None
 
     @property
-    def llm(self) -> Optional[OllamaLLM]:
+    def llm(self) -> OllamaLLM | None:
         """Lazy initialization of LLM"""
         if self._llm is None:
             try:
@@ -65,6 +64,7 @@ class LLMService:
 
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get(f"{self.OLLAMA_BASE_URL}/api/tags")
                 if response.status_code == 200:
@@ -87,8 +87,8 @@ class LLMService:
         description: str,
         severity: str,
         user_system: str,
-        affected_versions: List[str] = None
-    ) -> Dict[str, Any]:
+        affected_versions: list[str] = None,
+    ) -> dict[str, Any]:
         """
         Analyze CVE impact on user's specific system.
 
@@ -128,28 +128,30 @@ PRIORITY: [CRITICAL/HIGH/MEDIUM/LOW]""")
                         "cve_id": cve_id,
                         "severity": severity,
                         "description": description[:500],
-                        "affected_versions": ", ".join(affected_versions[:5]) if affected_versions else "Not specified",
-                        "user_system": user_system
-                    }
+                        "affected_versions": ", ".join(affected_versions[:5])
+                        if affected_versions
+                        else "Not specified",
+                        "user_system": user_system,
+                    },
                 ),
-                timeout=self.REQUEST_TIMEOUT
+                timeout=self.REQUEST_TIMEOUT,
             )
             return self._parse_cve_response(result, severity)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"LLM timeout for CVE {cve_id}")
             return self._fallback_cve_analysis(severity, affected_versions, user_system)
         except Exception as e:
             logger.error(f"LLM error for CVE {cve_id}: {e}")
             return self._fallback_cve_analysis(severity, affected_versions, user_system)
 
-    def _parse_cve_response(self, response: str, severity: str) -> Dict[str, Any]:
+    def _parse_cve_response(self, response: str, severity: str) -> dict[str, Any]:
         """Parse LLM response for CVE analysis"""
         result = {
             "affects_user": None,
             "confidence": "low",
             "explanation": "",
             "recommended_action": "",
-            "priority": severity.lower() if severity else "medium"
+            "priority": severity.lower() if severity else "medium",
         }
 
         try:
@@ -173,11 +175,8 @@ PRIORITY: [CRITICAL/HIGH/MEDIUM/LOW]""")
         return result
 
     def _fallback_cve_analysis(
-        self,
-        severity: str,
-        affected_versions: List[str],
-        user_system: str
-    ) -> Dict[str, Any]:
+        self, severity: str, affected_versions: list[str], user_system: str
+    ) -> dict[str, Any]:
         """Fallback when LLM is unavailable"""
         # Simple rule-based fallback
         affects_user = None
@@ -194,12 +193,12 @@ PRIORITY: [CRITICAL/HIGH/MEDIUM/LOW]""")
             "confidence": "low",
             "explanation": "LLM unavailable - based on version matching only",
             "recommended_action": "Check NVD for detailed impact information",
-            "priority": priority_map.get(severity.upper(), "medium")
+            "priority": priority_map.get(severity.upper(), "medium"),
         }
 
 
 # Global instance
-_llm_service: Optional[LLMService] = None
+_llm_service: LLMService | None = None
 
 
 def get_llm_service() -> LLMService:
@@ -210,12 +209,8 @@ def get_llm_service() -> LLMService:
     return _llm_service
 
 
-async def check_llm_status() -> Dict[str, Any]:
+async def check_llm_status() -> dict[str, Any]:
     """Check LLM service status"""
     service = get_llm_service()
     available = await service.is_available()
-    return {
-        "available": available,
-        "model": service.model,
-        "base_url": service.OLLAMA_BASE_URL
-    }
+    return {"available": available, "model": service.model, "base_url": service.OLLAMA_BASE_URL}

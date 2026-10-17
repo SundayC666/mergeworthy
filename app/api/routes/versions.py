@@ -5,7 +5,8 @@ Rate limiting: 60/minute for reads, 5/minute for refresh
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from slowapi import Limiter
@@ -20,6 +21,7 @@ router = APIRouter()
 
 class QuickButton(BaseModel):
     """Quick search button data"""
+
     label: str
     query: str
     icon: str
@@ -28,6 +30,7 @@ class QuickButton(BaseModel):
 
 class VersionInfo(BaseModel):
     """Version information for a product"""
+
     version: str
     query: str
     display: str
@@ -36,22 +39,25 @@ class VersionInfo(BaseModel):
 
 class ProductVersions(BaseModel):
     """Product with its versions"""
+
     name: str
     icon: str
     css_class: str
-    versions: List[VersionInfo]
+    versions: list[VersionInfo]
 
 
 class QuickButtonsResponse(BaseModel):
     """Response for quick buttons endpoint"""
-    buttons: List[QuickButton]
-    cache_status: Dict[str, Any]
+
+    buttons: list[QuickButton]
+    cache_status: dict[str, Any]
 
 
 class AllVersionsResponse(BaseModel):
     """Response for all versions endpoint"""
-    products: Dict[str, ProductVersions]
-    cache_status: Dict[str, Any]
+
+    products: dict[str, ProductVersions]
+    cache_status: dict[str, Any]
 
 
 @router.get("/versions/buttons", response_model=QuickButtonsResponse)
@@ -68,13 +74,10 @@ async def get_quick_buttons(request: Request) -> QuickButtonsResponse:
         buttons = await tracker.get_quick_buttons()
         cache_status = tracker.get_status()
 
-        return QuickButtonsResponse(
-            buttons=buttons,
-            cache_status=cache_status
-        )
+        return QuickButtonsResponse(buttons=buttons, cache_status=cache_status)
     except Exception as e:
         logger.error(f"Failed to get quick buttons: {e}")
-        raise HTTPException(status_code=500, detail="Failed to load version data")
+        raise HTTPException(status_code=500, detail="Failed to load version data") from e
 
 
 @router.get("/versions/all", response_model=AllVersionsResponse)
@@ -90,18 +93,15 @@ async def get_all_versions(request: Request) -> AllVersionsResponse:
         versions = await tracker.update_versions()
         cache_status = tracker.get_status()
 
-        return AllVersionsResponse(
-            products=versions,
-            cache_status=cache_status
-        )
+        return AllVersionsResponse(products=versions, cache_status=cache_status)
     except Exception as e:
         logger.error(f"Failed to get versions: {e}")
-        raise HTTPException(status_code=500, detail="Failed to load version data")
+        raise HTTPException(status_code=500, detail="Failed to load version data") from e
 
 
 @router.post("/versions/refresh")
 @limiter.limit("5/minute")
-async def refresh_versions(request: Request) -> Dict[str, Any]:
+async def refresh_versions(request: Request) -> dict[str, Any]:
     """
     Force refresh version cache
 
@@ -116,8 +116,8 @@ async def refresh_versions(request: Request) -> Dict[str, Any]:
         return {
             "status": "success",
             "message": "Version cache refreshed",
-            "cache_status": cache_status
+            "cache_status": cache_status,
         }
     except Exception as e:
         logger.error(f"Failed to refresh versions: {e}")
-        raise HTTPException(status_code=500, detail="Failed to refresh version data")
+        raise HTTPException(status_code=500, detail="Failed to refresh version data") from e

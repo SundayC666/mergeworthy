@@ -1,47 +1,53 @@
 name: CI
 
+# Every job here blocks the PR when it fails. Nothing is `|| true`.
+# Scope (ARCHITECTURE §9): CI checks the harness and the app as CODE. It never runs
+# a CVE-Bench case or calls a model: that would execute third-party code and spend
+# the Gateway budget on every push. Experiments run on the author's machine only.
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
+    name: ruff
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
 
-      - name: Install linting tools
-        run: pip install ruff
-
-      - name: Run syntax check
-        run: python -m py_compile main.py
-
-      - name: Check Python files syntax
-        run: |
-          python -m py_compile app/core/os_detector.py
-          python -m py_compile app/api/routes/cve_analyze.py
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      # Unit tests only: fake scripts, fake model client, no network, no budget.
+      - run: python -m pytest -q -p no:warnings
 
   security:
+    name: bandit
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-
-      - name: Install Bandit
-        run: pip install bandit
-
-      - name: Run Bandit security scan
-        run: bandit -r app/ -ll --skip B101,B110 -f txt || true
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      # Medium severity and above fails the build. Low findings are reported, not gating.
+      - run: bandit -r app/ harness/ main.py -ll

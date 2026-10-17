@@ -239,5 +239,7 @@ def apply_reply(case: Case, reply: str, patch_path: Path) -> ApplyResult:
         check=False,
     )
     if result.returncode != 0:
-        return ApplyResult(False, "git-apply-failed", result.stderr.strip(), diff, files, touches_tests)
+        return ApplyResult(
+            False, "git-apply-failed", result.stderr.strip(), diff, files, touches_tests
+        )
     return ApplyResult(True, "", "", diff, files, touches_tests)

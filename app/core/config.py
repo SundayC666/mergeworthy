@@ -3,16 +3,17 @@ Configuration settings using Pydantic
 Loads environment variables from .env file
 """
 
-from typing import Optional
-from pydantic_settings import BaseSettings
 from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application settings"""
 
     # Server configuration
-    HOST: str = Field(default="0.0.0.0", description="Server host")
+    # Listen on loopback by default: this is a single-user local tool. Set HOST=0.0.0.0
+    # in .env only when the app must be reachable from other machines (e.g. in a container).
+    HOST: str = Field(default="127.0.0.1", description="Server host")
     PORT: int = Field(default=8000, description="Server port")
     DEBUG: bool = Field(default=False, description="Debug mode")
 
@@ -27,12 +28,14 @@ class Settings(BaseSettings):
     CVE_MAX_RESULTS: int = Field(default=50, description="Maximum number of CVEs to fetch")
 
     # API configuration
-    NVD_API_KEY: Optional[str] = Field(default=None, description="NIST NVD API key (optional)")
+    NVD_API_KEY: str | None = Field(default=None, description="NIST NVD API key (optional)")
 
     @property
     def SERVER_URL(self) -> str:
         """Get the server URL"""
-        return f"http://{self.HOST if self.HOST != '0.0.0.0' else 'localhost'}:{self.PORT}"
+        # The literal is only compared against, never bound to (B104 is a false positive here).
+        host = "localhost" if self.HOST == "0.0.0.0" else self.HOST  # nosec B104
+        return f"http://{host}:{self.PORT}"
 
     class Config:
         env_file = ".env"

@@ -7,16 +7,19 @@ import httpx
 import pytest
 from openai import BadRequestError
 
+import harness.llm as llm_mod
 from harness.llm import (
     GATEWAY_BASE_URL,
     OLLAMA_BASE_URL,
+    BudgetExhausted,
     ModelCallError,
     ModelConfig,
     ModelConfigError,
+    assert_budget,
     call_model,
+    gateway_budget,
     load_model_config,
 )
-
 
 # --- fakes -----------------------------------------------------------------------
 
@@ -142,8 +145,14 @@ def test_empty_reply_fails_closed():
 
 
 def test_gives_up_after_every_param_was_rejected():
-    client = FakeClient([bad_request("'temperature'"), bad_request("'max_tokens'"),
-                         bad_request("'max_completion_tokens'"), bad_request("'nothing'")])
+    client = FakeClient(
+        [
+            bad_request("'temperature'"),
+            bad_request("'max_tokens'"),
+            bad_request("'max_completion_tokens'"),
+            bad_request("'nothing'"),
+        ]
+    )
     with pytest.raises((ModelCallError, BadRequestError)):
         call_model(client, config(), "s", "u")
 
@@ -156,7 +165,9 @@ def test_gateway_calls_bypass_the_litellm_cache():
 
 def test_ollama_calls_send_no_cache_header():
     client = FakeClient([reply("ok")])
-    call_model(client, config(provider="ollama", base_url=OLLAMA_BASE_URL, api_key="ollama"), "s", "u")
+    call_model(
+        client, config(provider="ollama", base_url=OLLAMA_BASE_URL, api_key="ollama"), "s", "u"
+    )
     assert "extra_body" not in client.calls[0]
 
 
@@ -168,9 +179,6 @@ def test_finish_reason_is_recorded():
 
 
 # --- budget ------------------------------------------------------------------------
-
-import harness.llm as llm_mod
-from harness.llm import BudgetExhausted, assert_budget, gateway_budget
 
 
 def fake_key_info(spend, max_budget):

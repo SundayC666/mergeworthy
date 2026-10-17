@@ -5,11 +5,11 @@ Implements CISA BOD 22-01 compliant SLA tracking with KEV prioritization
 
 import json
 import logging
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ SLA_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "sla_policy.j
 
 class SLAStatus(Enum):
     """SLA status levels"""
+
     ON_TRACK = "on_track"
     DUE_SOON = "due_soon"
     OVERDUE = "overdue"
@@ -28,17 +29,18 @@ class SLAStatus(Enum):
 @dataclass
 class SLAInfo:
     """SLA information for a vulnerability"""
+
     sla_days: int
-    deadline: Optional[datetime]
-    days_remaining: Optional[int]
-    hours_remaining: Optional[int]
+    deadline: datetime | None
+    days_remaining: int | None
+    hours_remaining: int | None
     status: SLAStatus
     status_label: str
     priority_rank: int
     priority_label: str
     policy_reference: str
     is_kev: bool
-    recommended_action: Optional[str] = None
+    recommended_action: str | None = None
 
 
 class SLATracker:
@@ -57,21 +59,21 @@ class SLATracker:
         self.priority_order = self.config.get("priority_order", {})
         self.status_thresholds = self.config.get("status_thresholds", {})
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """Load SLA policy configuration"""
         try:
             if SLA_CONFIG_PATH.exists():
-                with open(SLA_CONFIG_PATH, 'r', encoding='utf-8') as f:
+                with open(SLA_CONFIG_PATH, encoding="utf-8") as f:
                     config = json.load(f)
                     logger.info(f"Loaded SLA config from {SLA_CONFIG_PATH}")
                     return config
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load SLA config: {e}")
 
         # Return default config if file not found
         return self._get_default_config()
 
-    def _get_default_config(self) -> Dict[str, Any]:
+    def _get_default_config(self) -> dict[str, Any]:
         """Default SLA configuration based on CISA BOD 22-01"""
         return {
             "sla_definitions": {
@@ -80,7 +82,7 @@ class SLATracker:
                 "critical": {"days": 15},
                 "high": {"days": 30},
                 "medium": {"days": 90},
-                "low": {"days": 180}
+                "low": {"days": 180},
             },
             "priority_order": {
                 "kev_critical": 1,
@@ -90,16 +92,12 @@ class SLATracker:
                 "critical": 5,
                 "high": 6,
                 "medium": 7,
-                "low": 8
+                "low": 8,
             },
-            "status_thresholds": {
-                "on_track": 50,
-                "due_soon": 25,
-                "overdue": 0
-            }
+            "status_thresholds": {"on_track": 50, "due_soon": 25, "overdue": 0},
         }
 
-    def _parse_cve_year(self, cve_id: str) -> Optional[int]:
+    def _parse_cve_year(self, cve_id: str) -> int | None:
         """Extract year from CVE ID (e.g., CVE-2024-1234 -> 2024)"""
         if not cve_id:
             return None
@@ -159,10 +157,8 @@ class SLATracker:
         return rank, label
 
     def _calculate_status(
-        self,
-        sla_days: int,
-        published_date: Optional[datetime]
-    ) -> tuple[SLAStatus, Optional[datetime], Optional[int], Optional[int]]:
+        self, sla_days: int, published_date: datetime | None
+    ) -> tuple[SLAStatus, datetime | None, int | None, int | None]:
         """
         Calculate SLA status based on published date and SLA days.
 
@@ -192,7 +188,7 @@ class SLATracker:
 
         return SLAStatus.ON_TRACK, deadline, days_remaining, hours_remaining
 
-    def _get_status_label(self, status: SLAStatus, days_remaining: Optional[int]) -> str:
+    def _get_status_label(self, status: SLAStatus, days_remaining: int | None) -> str:
         """Generate human-readable status label"""
         if status == SLAStatus.OVERDUE:
             if days_remaining is not None:
@@ -213,11 +209,7 @@ class SLATracker:
         return "Unknown"
 
     def calculate_sla(
-        self,
-        cve_id: str,
-        severity: str,
-        is_kev: bool,
-        published_date: Optional[str] = None
+        self, cve_id: str, severity: str, is_kev: bool, published_date: str | None = None
     ) -> SLAInfo:
         """
         Calculate comprehensive SLA information for a CVE.
@@ -255,9 +247,7 @@ class SLATracker:
         priority_rank, priority_label = self._get_priority_rank(severity, is_kev)
 
         # Calculate status
-        status, deadline, days_remaining, hours_remaining = self._calculate_status(
-            sla_days, pub_dt
-        )
+        status, deadline, days_remaining, hours_remaining = self._calculate_status(sla_days, pub_dt)
 
         # Generate status label
         status_label = self._get_status_label(status, days_remaining)
@@ -283,10 +273,10 @@ class SLATracker:
             priority_label=priority_label,
             policy_reference=policy_ref,
             is_kev=is_kev,
-            recommended_action=recommended_action
+            recommended_action=recommended_action,
         )
 
-    def to_dict(self, sla_info: SLAInfo) -> Dict[str, Any]:
+    def to_dict(self, sla_info: SLAInfo) -> dict[str, Any]:
         """Convert SLAInfo to dictionary for JSON serialization"""
         return {
             "sla_days": sla_info.sla_days,
@@ -299,10 +289,10 @@ class SLATracker:
             "priority_label": sla_info.priority_label,
             "policy_reference": sla_info.policy_reference,
             "is_kev": sla_info.is_kev,
-            "recommended_action": sla_info.recommended_action
+            "recommended_action": sla_info.recommended_action,
         }
 
-    def get_sla_summary(self, cve_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def get_sla_summary(self, cve_list: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Generate SLA compliance summary for a list of CVEs.
 
@@ -319,7 +309,7 @@ class SLATracker:
             "overdue": 0,
             "unknown": 0,
             "kev_count": 0,
-            "compliance_rate": 0.0
+            "compliance_rate": 0.0,
         }
 
         for cve in cve_list:
@@ -348,7 +338,7 @@ class SLATracker:
 
 
 # Global instance
-_sla_tracker: Optional[SLATracker] = None
+_sla_tracker: SLATracker | None = None
 
 
 def get_sla_tracker() -> SLATracker:

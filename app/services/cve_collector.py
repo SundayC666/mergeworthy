@@ -7,7 +7,7 @@ Secondary source: CISA KEV catalog (for marking actively exploited CVEs)
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 import httpx
 
@@ -55,7 +55,6 @@ CPE_MAPPING = {
     "windows server 2016": ("microsoft", "windows_server_2016", "o"),
     "windows server 2019": ("microsoft", "windows_server_2019", "o"),
     "windows server 2022": ("microsoft", "windows_server_2022", "o"),
-
     # =========================================================================
     # Apple - macOS, iOS, iPadOS with version-specific CPEs
     # =========================================================================
@@ -68,10 +67,9 @@ CPE_MAPPING = {
         ("apple", "mac_os_x", "o"),
     ],
     "macos sequoia": ("apple", "macos", "o"),  # macOS 15
-    "macos sonoma": ("apple", "macos", "o"),   # macOS 14
+    "macos sonoma": ("apple", "macos", "o"),  # macOS 14
     "macos ventura": ("apple", "macos", "o"),  # macOS 13
-    "macos monterey": ("apple", "macos", "o"), # macOS 12
-
+    "macos monterey": ("apple", "macos", "o"),  # macOS 12
     "ios": [
         ("apple", "iphone_os", "o"),  # NVD uses iphone_os for iOS
     ],
@@ -84,7 +82,6 @@ CPE_MAPPING = {
     "visionos": ("apple", "visionos", "o"),
     "safari": ("apple", "safari", "a"),
     "xcode": ("apple", "xcode", "a"),
-
     # =========================================================================
     # Linux Distributions - Multiple versions
     # =========================================================================
@@ -97,13 +94,11 @@ CPE_MAPPING = {
     "ubuntu 24.04": ("canonical", "ubuntu_linux", "o"),
     "ubuntu 22.04": ("canonical", "ubuntu_linux", "o"),
     "ubuntu 20.04": ("canonical", "ubuntu_linux", "o"),
-
     "debian": [
         ("debian", "debian_linux", "o"),
     ],
     "debian 12": ("debian", "debian_linux", "o"),
     "debian 11": ("debian", "debian_linux", "o"),
-
     "redhat": [
         ("redhat", "enterprise_linux", "o"),
     ],
@@ -112,7 +107,6 @@ CPE_MAPPING = {
     ],
     "rhel 9": ("redhat", "enterprise_linux", "o"),
     "rhel 8": ("redhat", "enterprise_linux", "o"),
-
     "centos": [
         ("centos", "centos", "o"),
         ("centos", "centos_stream", "o"),
@@ -125,7 +119,6 @@ CPE_MAPPING = {
     "suse": ("suse", "linux_enterprise_server", "o"),
     "opensuse": ("opensuse", "leap", "o"),
     "arch linux": ("archlinux", "arch_linux", "o"),
-
     # =========================================================================
     # Android - Multiple versions
     # =========================================================================
@@ -135,7 +128,6 @@ CPE_MAPPING = {
     "android 14": ("google", "android", "o"),
     "android 13": ("google", "android", "o"),
     "android 12": ("google", "android", "o"),
-
     # =========================================================================
     # Browsers - Multiple browsers and versions
     # =========================================================================
@@ -144,23 +136,18 @@ CPE_MAPPING = {
     ],
     "google chrome": ("google", "chrome", "a"),
     "chromium": ("chromium", "chromium", "a"),
-
     "firefox": [
         ("mozilla", "firefox", "a"),
         ("mozilla", "firefox_esr", "a"),  # Extended Support Release
     ],
     "firefox esr": ("mozilla", "firefox_esr", "a"),
-
     "edge": [
         ("microsoft", "edge", "a"),
         ("microsoft", "edge_chromium", "a"),
     ],
     "microsoft edge": ("microsoft", "edge", "a"),
-
-    "safari": ("apple", "safari", "a"),
     "opera": ("opera", "opera_browser", "a"),
     "brave": ("brave", "brave", "a"),
-
     # =========================================================================
     # Microsoft Products
     # =========================================================================
@@ -170,14 +157,12 @@ CPE_MAPPING = {
     ],
     "microsoft 365": ("microsoft", "365_apps", "a"),
     "office 365": ("microsoft", "365_apps", "a"),
-
     "exchange": [
         ("microsoft", "exchange_server", "a"),
     ],
     "exchange server": ("microsoft", "exchange_server", "a"),
     "exchange 2019": ("microsoft", "exchange_server", "a"),
     "exchange 2016": ("microsoft", "exchange_server", "a"),
-
     "outlook": ("microsoft", "outlook", "a"),
     "teams": ("microsoft", "teams", "a"),
     "sharepoint": ("microsoft", "sharepoint_server", "a"),
@@ -186,7 +171,6 @@ CPE_MAPPING = {
     ".net": ("microsoft", ".net", "a"),
     "visual studio": ("microsoft", "visual_studio", "a"),
     "powershell": ("microsoft", "powershell", "a"),
-
     # =========================================================================
     # Adobe Products
     # =========================================================================
@@ -204,7 +188,6 @@ CPE_MAPPING = {
     "creative cloud": ("adobe", "creative_cloud_desktop_application", "a"),
     "flash player": ("adobe", "flash_player", "a"),
     "coldfusion": ("adobe", "coldfusion", "a"),
-
     # =========================================================================
     # Oracle/Java Products
     # =========================================================================
@@ -222,7 +205,6 @@ CPE_MAPPING = {
         ("mysql", "mysql", "a"),
     ],
     "weblogic": ("oracle", "weblogic_server", "a"),
-
     # =========================================================================
     # Web Servers & Proxies
     # =========================================================================
@@ -231,7 +213,6 @@ CPE_MAPPING = {
     ],
     "apache http server": ("apache", "http_server", "a"),
     "httpd": ("apache", "http_server", "a"),
-
     "nginx": ("nginx", "nginx", "a"),
     "tomcat": ("apache", "tomcat", "a"),
     "iis": ("microsoft", "internet_information_services", "a"),
@@ -239,7 +220,6 @@ CPE_MAPPING = {
     "lighttpd": ("lighttpd", "lighttpd", "a"),
     "haproxy": ("haproxy", "haproxy", "a"),
     "traefik": ("traefik", "traefik", "a"),
-
     # =========================================================================
     # Databases
     # =========================================================================
@@ -252,7 +232,6 @@ CPE_MAPPING = {
     "sqlite": ("sqlite", "sqlite", "a"),
     "cassandra": ("apache", "cassandra", "a"),
     "couchdb": ("apache", "couchdb", "a"),
-
     # =========================================================================
     # Containers & Orchestration
     # =========================================================================
@@ -267,7 +246,6 @@ CPE_MAPPING = {
     "podman": ("podman_project", "podman", "a"),
     "helm": ("helm", "helm", "a"),
     "rancher": ("rancher", "rancher", "a"),
-
     # =========================================================================
     # CI/CD & DevOps Tools
     # =========================================================================
@@ -284,7 +262,6 @@ CPE_MAPPING = {
     "vault": ("hashicorp", "vault", "a"),
     "consul": ("hashicorp", "consul", "a"),
     "argocd": ("argoproj", "argo_cd", "a"),
-
     # =========================================================================
     # CMS & Web Applications
     # =========================================================================
@@ -294,7 +271,6 @@ CPE_MAPPING = {
     "magento": ("adobe", "magento", "a"),
     "shopify": ("shopify", "shopify", "a"),
     "woocommerce": ("woocommerce", "woocommerce", "a"),
-
     # =========================================================================
     # Programming Languages & Runtimes
     # =========================================================================
@@ -308,7 +284,6 @@ CPE_MAPPING = {
     "golang": ("golang", "go", "a"),
     "rust": ("rust-lang", "rust", "a"),
     "perl": ("perl", "perl", "a"),
-
     # =========================================================================
     # Networking & Security
     # =========================================================================
@@ -320,27 +295,22 @@ CPE_MAPPING = {
     ],
     "cisco ios xe": ("cisco", "ios_xe", "o"),
     "cisco nx-os": ("cisco", "nx-os", "o"),
-
     "fortinet": [
         ("fortinet", "fortios", "o"),
         ("fortinet", "fortigate", "h"),
     ],
     "fortigate": ("fortinet", "fortios", "o"),
     "fortios": ("fortinet", "fortios", "o"),
-
     "palo alto": [
         ("paloaltonetworks", "pan-os", "o"),
     ],
     "pan-os": ("paloaltonetworks", "pan-os", "o"),
-
     "juniper": ("juniper", "junos", "o"),
     "junos": ("juniper", "junos", "o"),
-
     "checkpoint": ("checkpoint", "gaia_os", "o"),
     "sophos": ("sophos", "sophos_firewall", "a"),
     "f5": ("f5", "big-ip_access_policy_manager", "a"),
     "big-ip": ("f5", "big-ip_access_policy_manager", "a"),
-
     # =========================================================================
     # VPN & Remote Access
     # =========================================================================
@@ -350,7 +320,6 @@ CPE_MAPPING = {
     "pulse secure": ("pulsesecure", "pulse_connect_secure", "a"),
     "citrix": ("citrix", "netscaler_gateway", "a"),
     "netscaler": ("citrix", "netscaler_gateway", "a"),
-
     # =========================================================================
     # Virtualization
     # =========================================================================
@@ -366,7 +335,6 @@ CPE_MAPPING = {
     "proxmox": ("proxmox", "virtual_environment", "a"),
     "qemu": ("qemu", "qemu", "a"),
     "kvm": ("linux", "kernel", "o"),
-
     # =========================================================================
     # Messaging & Collaboration
     # =========================================================================
@@ -374,7 +342,6 @@ CPE_MAPPING = {
     "zoom": ("zoom", "zoom", "a"),
     "webex": ("cisco", "webex_meetings", "a"),
     "discord": ("discord", "discord", "a"),
-
     # =========================================================================
     # Cloud Platforms
     # =========================================================================
@@ -392,15 +359,19 @@ class CVEDataCollector:
     """
 
     NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
-    CISA_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    CISA_KEV_URL = (
+        "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+    )
 
     def __init__(self):
-        self.nvd_api_key = getattr(settings, 'NVD_API_KEY', None)
-        self.max_results = getattr(settings, 'CVE_MAX_RESULTS', 100)
-        self._kev_cache: Optional[List[Dict]] = None
-        self._kev_cache_time: Optional[datetime] = None
+        self.nvd_api_key = getattr(settings, "NVD_API_KEY", None)
+        self.max_results = getattr(settings, "CVE_MAX_RESULTS", 100)
+        self._kev_cache: list[dict] | None = None
+        self._kev_cache_time: datetime | None = None
 
-    async def fetch_by_keyword(self, keyword: str, limit: int = 50, years: int = 3) -> List[Dict[str, Any]]:
+    async def fetch_by_keyword(
+        self, keyword: str, limit: int = 50, years: int = 3
+    ) -> list[dict[str, Any]]:
         """
         Fetch CVEs by keyword using NVD virtualMatchString (CPE-based search).
 
@@ -454,18 +425,19 @@ class CVEDataCollector:
         processed.sort(
             key=lambda x: (
                 x.get("published_date", ""),
-                -severity_order.get(x.get("severity", "UNKNOWN"), 4)
+                -severity_order.get(x.get("severity", "UNKNOWN"), 4),
             ),
-            reverse=True
+            reverse=True,
         )
 
         logger.info(f"Found {len(processed)} unique CVEs for {keyword}")
         return processed[:limit]
 
-    def _build_cpe_strings(self, keyword: str) -> List[str]:
+    def _build_cpe_strings(self, keyword: str) -> list[str]:
         """
         Build CPE 2.3 strings from keyword.
-        Returns a list of CPE strings (multiple for products like Windows with version-specific CPEs).
+        Returns a list of CPE strings (several for products like Windows that have
+        version-specific CPEs).
         """
         cpe_strings = []
 
@@ -513,7 +485,7 @@ class CVEDataCollector:
 
         return cpe_strings
 
-    async def _fetch_nvd_cpe(self, cpe_string: str, limit: int, min_year: int) -> List[Dict]:
+    async def _fetch_nvd_cpe(self, cpe_string: str, limit: int, min_year: int) -> list[dict]:
         """
         Fetch CVEs from NVD using virtualMatchString (CPE-based search).
         This is the most precise way to search NVD.
@@ -529,7 +501,9 @@ class CVEDataCollector:
         # virtualMatchString doesn't work with date filters, use direct fetch with year filtering
         return await self._fetch_nvd_cpe_no_date_filter(cpe_string, limit, min_year)
 
-    async def _fetch_nvd_cpe_no_date_filter(self, cpe_string: str, limit: int, min_year: int) -> List[Dict]:
+    async def _fetch_nvd_cpe_no_date_filter(
+        self, cpe_string: str, limit: int, min_year: int
+    ) -> list[dict]:
         """
         Fetch CVEs using CPE search, scanning from the END of results (newest CVE IDs first).
         NVD returns CVEs sorted by CVE ID, so newer CVEs (with higher IDs) are at the end.
@@ -539,7 +513,7 @@ class CVEDataCollector:
             "virtualMatchString": cpe_string,
             "resultsPerPage": 100,
             "startIndex": 0,
-            "noRejected": ""  # Exclude rejected CVEs
+            "noRejected": "",  # Exclude rejected CVEs
         }
 
         headers = {"User-Agent": "SecOps-CVE-Collector/1.0"}
@@ -569,7 +543,9 @@ class CVEDataCollector:
                     if idx not in start_indices:
                         start_indices.append(idx)
 
-                logger.info(f"NVD: {total_results} total CVEs, scanning from indices: {start_indices}")
+                logger.info(
+                    f"NVD: {total_results} total CVEs, scanning from indices: {start_indices}"
+                )
 
                 rate_limit_delay = 0.1 if self.nvd_api_key else 6.0
 
@@ -599,7 +575,9 @@ class CVEDataCollector:
                             except (ValueError, IndexError):
                                 pass
 
-                    logger.info(f"NVD: scanned index {start_idx}, found {len(cves)} CVEs from {min_year}+")
+                    logger.info(
+                        f"NVD: scanned index {start_idx}, found {len(cves)} CVEs from {min_year}+"
+                    )
                     await asyncio.sleep(rate_limit_delay)
 
         except NVDLookupError:
@@ -635,7 +613,7 @@ class CVEDataCollector:
 
         return set()
 
-    def _process_nvd_cve(self, vuln_data: Dict) -> Optional[Dict]:
+    def _process_nvd_cve(self, vuln_data: dict) -> dict | None:
         """
         Process NVD CVE data into standardized format.
         """
@@ -693,7 +671,9 @@ class CVEDataCollector:
 
             return {
                 "cve_id": cve_id,
-                "title": f"{cve_id}: {description[:100]}..." if len(description) > 100 else f"{cve_id}: {description}",
+                "title": f"{cve_id}: {description[:100]}..."
+                if len(description) > 100
+                else f"{cve_id}: {description}",
                 "description": description,
                 "severity": severity.upper() if severity else "UNKNOWN",
                 "cvss_score": cvss_score,
@@ -711,7 +691,7 @@ class CVEDataCollector:
             logger.error(f"Error processing CVE: {e}")
             return None
 
-    def _extract_affected_products(self, cve: Dict) -> List[str]:
+    def _extract_affected_products(self, cve: dict) -> list[str]:
         """
         Extract affected products from CVE configurations.
         """
@@ -740,7 +720,9 @@ class CVEDataCollector:
                                     product_str = product
 
                                 # Add version info
-                                version_end = cpe.get("versionEndExcluding") or cpe.get("versionEndIncluding")
+                                version_end = cpe.get("versionEndExcluding") or cpe.get(
+                                    "versionEndIncluding"
+                                )
                                 version_start = cpe.get("versionStartIncluding")
 
                                 if version_end:
@@ -756,7 +738,7 @@ class CVEDataCollector:
 
         return affected[:20]  # Limit to 20 entries
 
-    def _extract_tags(self, description: str, affected_products: List[str]) -> List[str]:
+    def _extract_tags(self, description: str, affected_products: list[str]) -> list[str]:
         """
         Extract relevant tags from CVE description and affected products.
         """
@@ -793,7 +775,7 @@ class CVEDataCollector:
 
         return list(tags)
 
-    async def fetch_cve_by_id(self, cve_id: str) -> Optional[Dict[str, Any]]:
+    async def fetch_cve_by_id(self, cve_id: str) -> dict[str, Any] | None:
         """
         Fetch a specific CVE by ID.
         """

@@ -1,3 +1,5 @@
 # Development-only dependencies (not needed to run the app)
 # Install with: pip install -r requirements-dev.txt
 pytest==8.4.2
+ruff==0.17.1
+bandit==1.9.4

@@ -12,7 +12,6 @@ fixture restores the real one afterwards).
 """
 
 import json
-from typing import Optional
 
 import httpx
 import pytest
@@ -31,7 +30,7 @@ BROWSER_UA = (
 class FakeResponse:
     """The minimum the collector reads from an httpx response."""
 
-    def __init__(self, status_code: int, payload: Optional[dict] = None):
+    def __init__(self, status_code: int, payload: dict | None = None):
         self.status_code = status_code
         self._payload = payload or {}
         self.text = json.dumps(self._payload)
@@ -40,7 +39,7 @@ class FakeResponse:
         return self._payload
 
 
-def fake_get(nvd_status: int, nvd_payload: Optional[dict] = None):
+def fake_get(nvd_status: int, nvd_payload: dict | None = None):
     """Build a replacement for httpx.AsyncClient.get.
 
     NVD calls get `nvd_status` / `nvd_payload`. Every other call (CISA KEV,

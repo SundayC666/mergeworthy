@@ -16,9 +16,9 @@ The KNOWN_VERSIONS dict can be updated:
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,21 @@ KNOWN_VERSIONS = {
         "icon": "fab fa-apple",
         "css_class": "macos",
         "versions": [
-            {"version": "15", "codename": "Sequoia", "query": "macOS 15", "display": "macOS 15", "year": 2024},
-            {"version": "14", "codename": "Sonoma", "query": "macOS 14", "display": "macOS 14", "year": 2023},
-        ]
+            {
+                "version": "15",
+                "codename": "Sequoia",
+                "query": "macOS 15",
+                "display": "macOS 15",
+                "year": 2024,
+            },
+            {
+                "version": "14",
+                "codename": "Sonoma",
+                "query": "macOS 14",
+                "display": "macOS 14",
+                "year": 2023,
+            },
+        ],
     },
     "windows": {
         "name": "Windows",
@@ -44,16 +56,28 @@ KNOWN_VERSIONS = {
         "versions": [
             {"version": "11", "query": "Windows 11", "display": "Windows 11", "year": 2021},
             {"version": "10", "query": "Windows 10", "display": "Windows 10", "year": 2015},
-        ]
+        ],
     },
     "ubuntu": {
         "name": "Ubuntu",
         "icon": "fab fa-ubuntu",
         "css_class": "linux",
         "versions": [
-            {"version": "24.04", "codename": "Noble", "query": "Ubuntu 24", "display": "Ubuntu 24", "year": 2024},
-            {"version": "22.04", "codename": "Jammy", "query": "Ubuntu 22", "display": "Ubuntu 22", "year": 2022},
-        ]
+            {
+                "version": "24.04",
+                "codename": "Noble",
+                "query": "Ubuntu 24",
+                "display": "Ubuntu 24",
+                "year": 2024,
+            },
+            {
+                "version": "22.04",
+                "codename": "Jammy",
+                "query": "Ubuntu 22",
+                "display": "Ubuntu 22",
+                "year": 2022,
+            },
+        ],
     },
     "ios": {
         "name": "iOS",
@@ -62,7 +86,7 @@ KNOWN_VERSIONS = {
         "versions": [
             {"version": "26", "query": "iOS 26", "display": "iOS 26", "year": 2026},
             {"version": "18", "query": "iOS 18", "display": "iOS 18", "year": 2024},
-        ]
+        ],
     },
     "android": {
         "name": "Android",
@@ -71,7 +95,7 @@ KNOWN_VERSIONS = {
         "versions": [
             {"version": "15", "query": "Android 15", "display": "Android 15", "year": 2024},
             {"version": "14", "query": "Android 14", "display": "Android 14", "year": 2023},
-        ]
+        ],
     },
     "chrome": {
         "name": "Chrome",
@@ -79,7 +103,7 @@ KNOWN_VERSIONS = {
         "css_class": "browser",
         "versions": [
             {"version": "latest", "query": "Chrome", "display": "Chrome"},
-        ]
+        ],
     },
     "firefox": {
         "name": "Firefox",
@@ -87,7 +111,7 @@ KNOWN_VERSIONS = {
         "css_class": "browser",
         "versions": [
             {"version": "latest", "query": "Firefox", "display": "Firefox"},
-        ]
+        ],
     },
     "safari": {
         "name": "Safari",
@@ -95,7 +119,7 @@ KNOWN_VERSIONS = {
         "css_class": "browser",
         "versions": [
             {"version": "latest", "query": "Safari", "display": "Safari"},
-        ]
+        ],
     },
 }
 
@@ -104,19 +128,21 @@ class VersionTracker:
     """Tracks latest software versions for quick search buttons"""
 
     def __init__(self):
-        self.versions: Dict[str, Any] = {}
-        self.last_updated: Optional[datetime] = None
+        self.versions: dict[str, Any] = {}
+        self.last_updated: datetime | None = None
         self._load_versions()
 
     def _load_versions(self):
         """Load versions from cache file or use defaults"""
         try:
             if CACHE_FILE.exists():
-                with open(CACHE_FILE, 'r') as f:
+                with open(CACHE_FILE) as f:
                     data = json.load(f)
-                    if 'versions' in data:
-                        self.versions = data['versions']
-                        self.last_updated = datetime.fromisoformat(data.get('updated', datetime.now().isoformat()))
+                    if "versions" in data:
+                        self.versions = data["versions"]
+                        self.last_updated = datetime.fromisoformat(
+                            data.get("updated", datetime.now().isoformat())
+                        )
                         logger.info(f"Loaded {len(self.versions)} products from version cache")
                         return
         except Exception as e:
@@ -132,17 +158,23 @@ class VersionTracker:
         """Save current versions to cache file"""
         try:
             CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            with open(CACHE_FILE, 'w') as f:
-                json.dump({
-                    'versions': self.versions,
-                    'updated': self.last_updated.isoformat() if self.last_updated else datetime.now().isoformat(),
-                    'source': 'curated'
-                }, f, indent=2)
+            with open(CACHE_FILE, "w") as f:
+                json.dump(
+                    {
+                        "versions": self.versions,
+                        "updated": self.last_updated.isoformat()
+                        if self.last_updated
+                        else datetime.now().isoformat(),
+                        "source": "curated",
+                    },
+                    f,
+                    indent=2,
+                )
             logger.info("Saved version cache")
         except Exception as e:
             logger.warning(f"Failed to save version cache: {e}")
 
-    async def update_versions(self, force: bool = False) -> Dict[str, Any]:
+    async def update_versions(self, force: bool = False) -> dict[str, Any]:
         """
         Get current versions.
 
@@ -152,7 +184,7 @@ class VersionTracker:
             self._load_versions()
         return self.versions
 
-    async def set_version(self, product: str, versions: List[Dict]) -> bool:
+    async def set_version(self, product: str, versions: list[dict]) -> bool:
         """
         Update versions for a specific product.
 
@@ -169,17 +201,17 @@ class VersionTracker:
 
         # Validate version data
         for v in versions:
-            if 'query' not in v or 'display' not in v:
+            if "query" not in v or "display" not in v:
                 logger.warning(f"Invalid version data: {v}")
                 return False
 
-        self.versions[product]['versions'] = versions
+        self.versions[product]["versions"] = versions
         self.last_updated = datetime.now()
         self._save_cache()
         logger.info(f"Updated versions for {product}")
         return True
 
-    async def get_quick_buttons(self) -> List[Dict]:
+    async def get_quick_buttons(self) -> list[dict]:
         """Get formatted data for quick search buttons"""
         buttons = []
         # Order: macOS, Windows, Ubuntu, iOS, Android, Browsers
@@ -188,26 +220,28 @@ class VersionTracker:
         for product_key in order:
             product = self.versions.get(product_key, {})
             for ver in product.get("versions", [])[:2]:  # Max 2 versions per product
-                buttons.append({
-                    "label": ver.get("display", ver.get("query", "")),
-                    "query": ver.get("query", ""),
-                    "icon": product.get("icon", "fas fa-desktop"),
-                    "css_class": product.get("css_class", ""),
-                })
+                buttons.append(
+                    {
+                        "label": ver.get("display", ver.get("query", "")),
+                        "query": ver.get("query", ""),
+                        "icon": product.get("icon", "fas fa-desktop"),
+                        "css_class": product.get("css_class", ""),
+                    }
+                )
 
         return buttons
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         """Get tracker status information"""
         return {
             "products": len(self.versions),
             "last_updated": self.last_updated.isoformat() if self.last_updated else None,
-            "cache_exists": CACHE_FILE.exists()
+            "cache_exists": CACHE_FILE.exists(),
         }
 
 
 # Singleton instance
-_tracker: Optional[VersionTracker] = None
+_tracker: VersionTracker | None = None
 
 
 def get_version_tracker() -> VersionTracker:

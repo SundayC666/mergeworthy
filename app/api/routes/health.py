@@ -3,11 +3,11 @@ Health check endpoint
 Provides system status information
 """
 
+import time
+from datetime import datetime
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-from datetime import datetime
-import time
-
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -20,6 +20,7 @@ _startup_time = time.time()
 
 class HealthResponse(BaseModel):
     """Health check response model"""
+
     status: str
     version: str
     uptime_seconds: float
@@ -41,5 +42,5 @@ async def health_check(request: Request):
         status="healthy",
         version="2.0.0",
         uptime_seconds=round(uptime, 2),
-        timestamp=datetime.utcnow().isoformat()
+        timestamp=datetime.utcnow().isoformat(),
     )

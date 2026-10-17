@@ -5,26 +5,19 @@ FastAPI-based security vulnerability analysis system with local LLM support
 Entry point: python main.py
 """
 
-import asyncio
 import os
-import sys
-from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
-# Add project root to path
-PROJECT_ROOT = Path(__file__).parent.resolve()
-sys.path.insert(0, str(PROJECT_ROOT))
-
+from app.api.routes import cve_analyze, health, os_detect, versions
 from app.core.config import settings
-from app.api.routes import health, os_detect, cve_analyze, versions
 
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
@@ -35,7 +28,7 @@ app = FastAPI(
     description="Local-first security vulnerability analysis with OS detection",
     version="2.0.0",
     docs_url="/api/docs",
-    redoc_url="/api/redoc"
+    redoc_url="/api/redoc",
 )
 
 # Add rate limiter to app state
@@ -103,10 +96,4 @@ async def serve_index():
 if __name__ == "__main__":
     # Run the server (PORT env var for Render deployment)
     port = int(os.environ.get("PORT", settings.PORT))
-    uvicorn.run(
-        "main:app",
-        host=settings.HOST,
-        port=port,
-        reload=settings.DEBUG,
-        log_level="info"
-    )
+    uvicorn.run("main:app", host=settings.HOST, port=port, reload=settings.DEBUG, log_level="info")

@@ -1,12 +1,20 @@
 """Unit tests for harness/patch.py: locate.md parsing and ast-based snippet extraction.
 No CVE-Bench checkout and no model are needed."""
 
+import subprocess
 import textwrap
 
 import pytest
 
-from harness.patch import Target, extract_snippet, parse_locate
-from harness.setup_case import HarnessError
+from harness.patch import (
+    Target,
+    apply_reply,
+    extract_diff,
+    extract_snippet,
+    parse_locate,
+    patched_files,
+)
+from harness.setup_case import Case, HarnessError
 
 LOCATE_FUNCTION = """\
 A security vulnerability has been identified in the following location:
@@ -34,7 +42,9 @@ def test_parse_locate_function():
 
 
 def test_parse_locate_class_and_method():
-    assert parse_locate(LOCATE_CLASS_METHOD) == Target("src/justhtml/parser.py", "JustHTML.__init__")
+    assert parse_locate(LOCATE_CLASS_METHOD) == Target(
+        "src/justhtml/parser.py", "JustHTML.__init__"
+    )
 
 
 def test_parse_locate_class_only():
@@ -113,12 +123,6 @@ def test_extract_missing_file_fails_closed(repo):
 
 # --- reply -> diff -> git apply ------------------------------------------------------
 
-import subprocess
-from pathlib import Path
-
-from harness.patch import apply_reply, extract_diff, patched_files
-from harness.setup_case import Case
-
 GOOD_DIFF = """\
 diff --git a/pkg/mod.py b/pkg/mod.py
 --- a/pkg/mod.py
@@ -155,8 +159,13 @@ def test_patched_files_and_test_detection():
 
 @pytest.fixture
 def git_repo(repo):
-    env = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@x", "GIT_COMMITTER_NAME": "t",
-           "GIT_COMMITTER_EMAIL": "t@x", "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"}
+    env = {
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@x",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@x",
+        "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin",
+    }
     for cmd in (["git", "init", "-q"], ["git", "add", "."], ["git", "commit", "-q", "-m", "base"]):
         subprocess.run(cmd, cwd=repo, check=True, env=env)
     return repo

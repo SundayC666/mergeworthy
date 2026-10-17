@@ -7,11 +7,11 @@ Run: python tests/comprehensive_test.py
 
 import asyncio
 import json
-import time
 import sys
+import time
 from datetime import datetime
-from typing import Dict, List, Any, Optional
 from pathlib import Path
+from typing import Any
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -25,7 +25,7 @@ class TestResults:
     """Collect and report test results"""
 
     def __init__(self):
-        self.tests: List[Dict[str, Any]] = []
+        self.tests: list[dict[str, Any]] = []
         self.start_time = datetime.now()
 
     def add_result(self, category: str, test_name: str, passed: bool,
@@ -39,7 +39,7 @@ class TestResults:
             "error": error
         })
 
-    def generate_report(self) -> Dict[str, Any]:
+    def generate_report(self) -> dict[str, Any]:
         """Generate comprehensive test report"""
         total = len(self.tests)
         passed = sum(1 for t in self.tests if t["passed"])

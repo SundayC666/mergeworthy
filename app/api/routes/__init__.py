@@ -1,3 +1,3 @@
 """API route modules"""
 
-from . import health, os_detect, cve_analyze
+from . import cve_analyze, health, os_detect
