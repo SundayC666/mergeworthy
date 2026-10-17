@@ -11,6 +11,10 @@ existing tests, and turns that evidence into a merge gate.
 > harness and a merge gate, not an agent (see Non-goals in
 > [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The phishing analyzer from v1 lives
 > on the [`phishing-analyzer`](https://github.com/SundayC666/mergeworthy/tree/phishing-analyzer) branch.
+> Earlier versions also had a ChromaDB + Sentence Transformers retrieval fallback; it
+> was removed on 2026-09-27 (the harness has no retrieval need, and retrieval hurt
+> reproducibility). The last version with it is tagged
+> [`v2.0-rag-fallback`](https://github.com/SundayC666/mergeworthy/tree/v2.0-rag-fallback).
 
 **Why.** AI has made finding vulnerabilities in code cheap. What it has not made
 cheap is knowing whether the patch an AI writes actually fixes the bug *and* leaves
