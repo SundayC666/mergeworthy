@@ -1,5 +1,5 @@
 """
-SecOps Remediation Agent v2.0
+mergeworthy: web app half (CVE lookup / KEV / SLA)
 FastAPI-based security vulnerability analysis system with local LLM support
 
 Entry point: python main.py
@@ -25,7 +25,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Create FastAPI application
 app = FastAPI(
-    title="SecOps Remediation Agent",
+    title="mergeworthy",
     description="Local-first security vulnerability analysis with OS detection",
     version="2.0.0",
     docs_url="/api/docs",
@@ -52,7 +52,6 @@ app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://security-automation-platform.onrender.com",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
     ],
@@ -80,7 +79,7 @@ async def add_security_headers(request: Request, call_next):
 async def startup_event():
     """Initialize system components on startup"""
     print("=" * 70)
-    print("SecOps Remediation Agent v2.0")
+    print("mergeworthy (web app)")
     print("=" * 70)
 
     print("=" * 70)

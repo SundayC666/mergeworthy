@@ -1,5 +1,5 @@
 """
-Comprehensive Test Suite for SecOps Remediation Agent
+Comprehensive Test Suite for mergeworthy
 Tests functionality, stability, and accuracy
 
 Run: python tests/comprehensive_test.py
@@ -444,7 +444,7 @@ async def run_all_tests():
     results = TestResults()
 
     print("=" * 60)
-    print("SecOps Remediation Agent - Comprehensive Test Suite")
+    print("mergeworthy - Comprehensive Test Suite")
     print("=" * 60)
     print()
 

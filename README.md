@@ -1,15 +1,63 @@
-# Security Automation Platform
+# mergeworthy
+
+Measures whether AI-generated security patches fix real CVEs without breaking
+existing tests, and turns that evidence into a merge gate.
+
+> Formerly `secops-remediation-agent`. Renamed on 2026-10-18: this is a measurement
+> harness and a merge gate, not an agent (see Non-goals in
+> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The phishing analyzer from v1 lives
+> on the [`phishing-analyzer`](https://github.com/SundayC666/mergeworthy/tree/phishing-analyzer) branch.
+
+**Why.** AI has made finding vulnerabilities in code cheap. What it has not made
+cheap is knowing whether the patch an AI writes actually fixes the bug *and* leaves
+the rest of the program working. This repository measures that, so that the decision
+"does a human need to look at this patch?" can be made from data rather than by
+reviewing everything. Every number can be traced back to the exact diff the model
+produced and the test output that judged it.
+
+**How.** Cases come from [CVE-Bench](https://github.com/GiovanniGatti/cve-bench)
+(MIT), pinned to a fixed commit. For each case the model gets the public advisory and
+the vulnerable function, and returns a unified diff. The harness applies it and runs
+two kinds of tests: the security test that fails on the vulnerable commit, and the
+project's own existing tests. Each run ends in one of four outcomes:
+
+| Outcome | Security test (was failing) | Existing tests (were passing) |
+|---|---|---|
+| not applied | the diff did not apply, nothing was run | |
+| not fixed | still fails | |
+| fixed but broke something | passes | some fail |
+| fixed and clean | passes | all pass |
+
+**Status (2026-10-17, preliminary).** The pipeline runs end to end. claude-sonnet-5
+has run once on each of the first five cases: 2 passed the security test
+(python-multipart, scitokens), 1 applied but did not fix (justhtml), 1 applied but
+crashed the code (yt-dlp), 1 did not apply (oauthenticator). gpt-5.3-codex and
+gpt-oss-120b have each run once, on python-multipart only. The regression half
+(existing tests) is not wired in yet, so "passed" does not yet mean "fixed and clean".
+These are single runs, not statistics; no conclusion is drawn from them.
+
+| Case | Project | Weakness |
+|---|---|---|
+| CVE-2026-24486 | python-multipart | path traversal (CWE-22) |
+| GHSA-r758-8hxw-4845 | justhtml | cross-site scripting (CWE-79) |
+| CVE-2026-26331 | yt-dlp | OS command injection (CWE-78) |
+| CVE-2026-32714 | scitokens | SQL injection (CWE-89) |
+| CVE-2026-33175 | jupyterhub/oauthenticator | missing authorization check (CWE-287) |
+
+Design, decisions and open questions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+**The CVE lookup tool below** is the earlier half of this project: it answers *which*
+CVE matters (NVD data, CISA KEV, SLA tracking). The harness answers whether an AI
+patch for that CVE can be merged. The two are not connected yet; the harness is
+still being built.
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green?logo=fastapi)
 ![Security](https://img.shields.io/badge/Security-NVD%20CVE-red?logo=shield)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-> **Status (Sept 2026):** This project is being repositioned. The new direction is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (in progress). The phishing analyzer now lives on the [`phishing-analyzer`](https://github.com/SundayC666/secops-remediation-agent/tree/phishing-analyzer) branch.
+> **Status (Sept 2026):** This project is being repositioned. The new direction is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (in progress). The phishing analyzer now lives on the [`phishing-analyzer`](https://github.com/SundayC666/mergeworthy/tree/phishing-analyzer) branch.
 
-A security tool for CVE vulnerability lookup. Uses **CPE-based search** against NIST NVD with CISA KEV cross-referencing.
-
-**[Live Demo](https://security-automation-platform.onrender.com)** *(Free tier - initial load may take 30-60 seconds)*
 
 ## What This Tool Does
 
@@ -92,8 +140,8 @@ This project uses the following public APIs and data sources:
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/SundayC666/secops-remediation-agent.git
-cd secops-remediation-agent
+git clone https://github.com/SundayC666/mergeworthy.git
+cd mergeworthy
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -125,7 +173,7 @@ ollama pull llama3.2:3b
 The application will automatically detect Ollama and enable:
 - **Deep CVE Analysis**: Supplemental remediation recommendations
 
-> **Note:** The [Live Demo](https://security-automation-platform.onrender.com) runs without Ollama. LLM features are only available when running locally with Ollama installed.
+> **Note:** LLM features are only available when running locally with Ollama installed.
 
 ## Security
 

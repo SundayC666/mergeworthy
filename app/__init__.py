@@ -1,5 +1,5 @@
 """
-SecOps Remediation Agent - Application Package
+mergeworthy - web application package (CVE lookup / KEV / SLA)
 """
 
 __version__ = "2.0.0"
