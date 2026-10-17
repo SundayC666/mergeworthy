@@ -18,6 +18,7 @@ from slowapi.util import get_remote_address
 
 from app.api.routes import cve_analyze, health, os_detect, versions
 from app.core.config import settings
+from app.core.input_sanitizer import log_security_event
 
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
@@ -33,7 +34,19 @@ app = FastAPI(
 
 # Add rate limiter to app state
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    """Record who hit a limit before returning slowapi's standard 429."""
+    log_security_event(
+        "rate_limited",
+        f"{request.method} {request.url.path} ({exc.detail})",
+        request.client.host if request.client else None,
+    )
+    return _rate_limit_exceeded_handler(request, exc)
+
+
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 # CORS middleware - restrict origins in production
 app.add_middleware(

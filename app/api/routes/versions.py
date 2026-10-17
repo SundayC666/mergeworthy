@@ -1,7 +1,7 @@
 """
 Version Tracking API Endpoint
 Returns latest OS/software versions for quick search buttons
-Rate limiting: 60/minute for reads, 5/minute for refresh
+Rate limiting: 60/minute for buttons, 30/minute for the full list
 """
 
 import logging
@@ -97,27 +97,3 @@ async def get_all_versions(request: Request) -> AllVersionsResponse:
     except Exception as e:
         logger.error(f"Failed to get versions: {e}")
         raise HTTPException(status_code=500, detail="Failed to load version data") from e
-
-
-@router.post("/versions/refresh")
-@limiter.limit("5/minute")
-async def refresh_versions(request: Request) -> dict[str, Any]:
-    """
-    Force refresh version cache
-
-    Manually triggers a refresh of version data from NVD.
-    Use sparingly to avoid hitting API rate limits.
-    """
-    try:
-        tracker = get_version_tracker()
-        await tracker.update_versions(force=True)
-        cache_status = tracker.get_status()
-
-        return {
-            "status": "success",
-            "message": "Version cache refreshed",
-            "cache_status": cache_status,
-        }
-    except Exception as e:
-        logger.error(f"Failed to refresh versions: {e}")
-        raise HTTPException(status_code=500, detail="Failed to refresh version data") from e

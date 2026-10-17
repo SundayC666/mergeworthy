@@ -10,8 +10,7 @@ Strategy:
 
 The KNOWN_VERSIONS dict can be updated:
 1. Manually edit this file
-2. Via the /api/versions/refresh endpoint with version data
-3. Via the version_cache.json file
+2. Via the version_cache.json file (re-read on startup)
 """
 
 import json
@@ -183,33 +182,6 @@ class VersionTracker:
         if force:
             self._load_versions()
         return self.versions
-
-    async def set_version(self, product: str, versions: list[dict]) -> bool:
-        """
-        Update versions for a specific product.
-
-        Args:
-            product: Product key (e.g., 'macos', 'ios')
-            versions: List of version dicts with query, display, version keys
-
-        Returns:
-            True if successful
-        """
-        if product not in self.versions:
-            logger.warning(f"Unknown product: {product}")
-            return False
-
-        # Validate version data
-        for v in versions:
-            if "query" not in v or "display" not in v:
-                logger.warning(f"Invalid version data: {v}")
-                return False
-
-        self.versions[product]["versions"] = versions
-        self.last_updated = datetime.now()
-        self._save_cache()
-        logger.info(f"Updated versions for {product}")
-        return True
 
     async def get_quick_buttons(self) -> list[dict]:
         """Get formatted data for quick search buttons"""

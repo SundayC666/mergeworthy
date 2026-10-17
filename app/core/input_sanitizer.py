@@ -85,9 +85,9 @@ def sanitize_query(query: str) -> tuple[str, str | None]:
     # Check for dangerous patterns
     for pattern, threat_name in COMPILED_DANGEROUS_PATTERNS:
         if pattern.search(query):
-            logger.warning(
-                f"Blocked potentially malicious input: {threat_name} - Query: {query[:50]}..."
-            )
+            # No client address here (Pydantic validators have no request); the
+            # event is still worth recording for pattern counts.
+            log_security_event("blocked_input", f"{threat_name}: {query[:50]!r}")
             return "", "Invalid characters detected in query"
 
     # HTML encode to prevent XSS when displayed
