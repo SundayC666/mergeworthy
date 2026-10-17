@@ -29,6 +29,18 @@ The second mode is fixing the vulnerability while breaking functionality. In one
 - 它們「沒有」做的是哪一段？（提示：部署閘門、掃描器綠燈 vs 真的修好、在自己 fork 的實戰）
 - 用一句話回答面試官會問的：「這跟 CVE-Bench 差在哪？」
 - 你沿用了什麼（資料集、判定方法），並註明來源與授權。
+
+查證過的事實（2026-10-18），寫的時候從這裡取材，用自己的話：
+沿用：
+  - 判定方法 FAIL_TO_PASS / PASS_TO_PASS 來自 SWE-bench（Jimenez et al., 2023）
+  - 案例、安全測試、setup 腳本、「跑測試前注入可信測試檔」的設計來自 CVE-Bench
+    （GiovanniGatti/cve-bench, MIT, commit 45cb1bf）
+與 CVE-Bench 的差異（每一條都是你的決定，§12 有理由）：
+  1. 它沒有 baseline；本專案套 patch 前先跑一次原有測試，只看原本通過的
+  2. 它只判「解沒解」；本專案分四類，把「修好但弄壞」獨立量出來
+  3. 它沒有「patch 動到測試檔」旗標，沒有嚴格套用 + --ignore-whitespace 乾跑的雙紀錄
+  4. 它是 benchmark，到判定為止；本專案的數字接到合併閘門（§6）
+  5. 它不記成本與時間；本專案每筆記 token、秒數、Gateway spend
 -->
 
 ## 3. Scope and Non-goals
