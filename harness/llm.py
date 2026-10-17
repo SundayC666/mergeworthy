@@ -27,6 +27,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+import httpx
 from openai import BadRequestError, OpenAI
 
 GATEWAY_BASE_URL = "https://litellm.oit.duke.edu/v1"
@@ -113,6 +114,67 @@ def load_model_config(
 def build_client(config: ModelConfig) -> OpenAI:
     """One SDK client works for both providers; only base_url and key differ."""
     return OpenAI(api_key=config.api_key, base_url=config.base_url)
+
+
+# --- budget -------------------------------------------------------------------------
+
+# Reserve two worst-case calls (16384 output tokens × claude-sonnet-5 ≈ $0.25 each):
+# a long justhtml-sized run must never be cut off halfway through the day's budget.
+BUDGET_RESERVE_USD: float = 0.50
+
+
+@dataclass(frozen=True)
+class Budget:
+    """What the gateway says about this key, in USD."""
+
+    spend: float
+    max_budget: float | None  # None = the key has no cap
+
+    @property
+    def remaining(self) -> float | None:
+        return None if self.max_budget is None else self.max_budget - self.spend
+
+
+class BudgetExhausted(RuntimeError):
+    """Not enough budget left to start another run. Stop, do not count anything."""
+
+
+def gateway_budget(config: ModelConfig) -> Budget:
+    """Ask LiteLLM's /key/info for this key's spend and cap. Gateway only."""
+    if config.provider != "gateway":
+        raise ModelConfigError("budget lookup only exists for the gateway")
+    root = config.base_url.rsplit("/v1", 1)[0]
+    response = httpx.get(
+        f"{root}/key/info",
+        headers={"Authorization": f"Bearer {config.api_key}"},
+        timeout=15,
+    )
+    response.raise_for_status()
+    info = response.json().get("info", {})
+    max_budget = info.get("max_budget")
+    return Budget(
+        spend=float(info.get("spend") or 0.0),
+        max_budget=None if max_budget is None else float(max_budget),
+    )
+
+
+def assert_budget(config: ModelConfig) -> Budget | None:
+    """Fail closed before spending: raise BudgetExhausted if too little is left.
+
+    Returns the Budget so the caller can record spend before/after a run. Returns
+    None for providers without a budget (Ollama).
+    """
+    if config.provider != "gateway":
+        return None
+    if BUDGET_RESERVE_USD is None:
+        raise ModelConfigError("BUDGET_RESERVE_USD has not been decided yet (see TODO).")
+    budget = gateway_budget(config)
+    if budget.remaining is not None and budget.remaining < BUDGET_RESERVE_USD:
+        raise BudgetExhausted(
+            f"only ${budget.remaining:.3f} of ${budget.max_budget:.2f} left "
+            f"(reserve is ${BUDGET_RESERVE_USD:.2f}); not starting another run"
+        )
+    return budget
 
 
 @dataclass

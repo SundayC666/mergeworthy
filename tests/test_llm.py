@@ -165,3 +165,59 @@ def test_finish_reason_is_recorded():
     r.choices[0].finish_reason = "stop"
     client = FakeClient([r])
     assert call_model(client, config(), "s", "u").finish_reason == "stop"
+
+
+# --- budget ------------------------------------------------------------------------
+
+import harness.llm as llm_mod
+from harness.llm import BudgetExhausted, assert_budget, gateway_budget
+
+
+def fake_key_info(spend, max_budget):
+    class R:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"info": {"spend": spend, "max_budget": max_budget}}
+
+    def get(url, headers=None, timeout=None):
+        assert url == "https://litellm.oit.duke.edu/key/info"  # root, not /v1
+        assert headers["Authorization"].startswith("Bearer ")
+        return R()
+
+    return get
+
+
+def test_gateway_budget_reads_spend_and_cap(monkeypatch):
+    monkeypatch.setattr(httpx, "get", fake_key_info(0.154, 1.0))
+    b = gateway_budget(config())
+    assert (b.spend, b.max_budget) == (0.154, 1.0)
+    assert round(b.remaining, 3) == 0.846
+
+
+def test_assert_budget_stops_before_spending(monkeypatch):
+    monkeypatch.setattr(httpx, "get", fake_key_info(0.95, 1.0))
+    monkeypatch.setattr(llm_mod, "BUDGET_RESERVE_USD", 0.30)
+    with pytest.raises(BudgetExhausted):
+        assert_budget(config())
+
+
+def test_assert_budget_passes_with_room(monkeypatch):
+    monkeypatch.setattr(httpx, "get", fake_key_info(0.10, 1.0))
+    monkeypatch.setattr(llm_mod, "BUDGET_RESERVE_USD", 0.30)
+    assert assert_budget(config()).spend == 0.10
+
+
+def test_uncapped_key_never_stops(monkeypatch):
+    monkeypatch.setattr(httpx, "get", fake_key_info(5.0, None))
+    monkeypatch.setattr(llm_mod, "BUDGET_RESERVE_USD", 0.30)
+    assert assert_budget(config()).remaining is None
+
+
+def test_ollama_has_no_budget():
+    assert assert_budget(config(provider="ollama")) is None
+
+
+def test_reserve_must_be_decided():
+    assert llm_mod.BUDGET_RESERVE_USD is not None, "fill in BUDGET_RESERVE_USD (TODO in llm.py)"

@@ -28,7 +28,14 @@ from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
-from harness.llm import build_client, call_model, load_model_config
+from harness.llm import (
+    BudgetExhausted,
+    assert_budget,
+    build_client,
+    call_model,
+    gateway_budget,
+    load_model_config,
+)
 from harness.patch import PROMPT_VERSION, apply_reply, build_prompt_v1, load_target
 from harness.setup_case import REPO_ROOT, Case, load_cases, run_security_tests, setup
 
@@ -40,6 +47,11 @@ def _slug(text: str) -> str:
 
 
 def run_one(case: Case, model: str, provider: str | None) -> dict:
+    """Run one case through one model. Raises BudgetExhausted BEFORE creating a run
+    folder when the gateway budget is too low; every other failure lands in the record."""
+    cfg = load_model_config(model, provider)
+    budget_before = assert_budget(cfg)  # fail closed before spending anything
+
     started = datetime.now(timezone.utc)
     run_id = f"{started:%Y%m%dT%H%M%SZ}-{_slug(case.id)}-{_slug(model)}"
     run_dir = RUNS_DIR / run_id
@@ -50,11 +62,14 @@ def run_one(case: Case, model: str, provider: str | None) -> dict:
         "case": case.id,
         "project": case.project,
         "model": model,
-        "provider": provider,
+        "provider": cfg.provider,
+        "temperature": cfg.temperature,
         "prompt_version": PROMPT_VERSION,
         "started_at": started.isoformat(),
         "outcome": "error",  # overwritten only when the pipeline reaches a verdict
     }
+    if budget_before is not None:
+        record["gateway_spend_before_usd"] = budget_before.spend
     t0 = time.monotonic()
     try:
         setup(case)
@@ -70,9 +85,6 @@ def run_one(case: Case, model: str, provider: str | None) -> dict:
         }
         record["prompt_chars"] = len(system) + len(user)
 
-        cfg = load_model_config(model, provider)
-        record["provider"] = cfg.provider
-        record["temperature"] = cfg.temperature
         call = call_model(build_client(cfg), cfg, system, user)
         (run_dir / "reply.md").write_text(call.text)
         record["model_call"] = {
@@ -106,6 +118,14 @@ def run_one(case: Case, model: str, provider: str | None) -> dict:
         (run_dir / "traceback.txt").write_text(traceback.format_exc())
     finally:
         record["total_s"] = round(time.monotonic() - t0, 1)
+        if budget_before is not None:
+            # LiteLLM's spend counter can lag by a few seconds, so this is a lower bound.
+            try:
+                after = gateway_budget(cfg).spend
+                record["gateway_spend_after_usd"] = after
+                record["gateway_cost_usd_lower_bound"] = round(after - budget_before.spend, 4)
+            except Exception as exc:  # noqa: BLE001 - never lose the record over this
+                record["gateway_spend_after_usd"] = f"lookup failed: {exc}"
         (run_dir / "record.json").write_text(json.dumps(record, indent=2))
     return record
 
@@ -126,8 +146,13 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"unknown case {args.case!r}")
 
     exit_code = 0
-    for case in cases:
-        rec = run_one(case, args.model, args.provider)
+    for i, case in enumerate(cases):
+        try:
+            rec = run_one(case, args.model, args.provider)
+        except BudgetExhausted as exc:
+            remaining = ", ".join(c.id for c in cases[i:])
+            print(f"STOP: {exc}\n      not run: {remaining}", file=sys.stderr)
+            return 2
         tokens = rec.get("model_call", {})
         print(
             f"{rec['case']:<22} {rec['model']:<16} {rec['outcome']:<14} "
