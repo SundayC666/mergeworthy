@@ -1,0 +1,54 @@
+```diff
+--- a/src/justhtml/parser.py
++++ b/src/justhtml/parser.py
+@@ -196,10 +196,15 @@
+         # places an explicit Sanitize() in the transform list, that explicit
+         # position becomes the sanitize point (no extra final pass is appended).
+         if transforms or sanitize_enabled:
+-            from .sanitize import DEFAULT_DOCUMENT_POLICY, DEFAULT_POLICY  # noqa: PLC0415
++            from .sanitize import (  # noqa: PLC0415
++                DEFAULT_DOCUMENT_POLICY,
++                DEFAULT_POLICY,
++                _sanitize_rawtext_element_contents,
++            )
+             from .transforms import Sanitize  # noqa: PLC0415
+ 
+             final_transforms: list[TransformSpec] = list(transforms or [])
++            final_sanitize_policy: SanitizationPolicy | None = None
+ 
+             # Normalize explicit Sanitize() transforms to use the same default policy
+             # choice as the old safe-output sanitizer (document vs fragment).
+@@ -222,6 +227,14 @@
+                 if effective_policy.unsafe_handling == "collect":
+                     effective_policy.reset_collected_security_errors()
+                 final_transforms.append(Sanitize(policy=effective_policy))
++
++            # Track the policy associated with the last enabled Sanitize transform
++            # so rawtext element contents (e.g. <style>, <script>) can be
++            # re-sanitized after the tree is mutated by transforms, preventing
++            # mutation XSS when custom policies preserve foreign namespaces or
++            # allowlist raw-text containers.
++            for t in final_transforms:
++                if isinstance(t, Sanitize) and t.enabled and t.policy is not None:
++                    final_sanitize_policy = t.policy
+ 
+             if final_transforms:
+                 compiled_transforms = None
+@@ -248,6 +261,16 @@
+                         if t_policy.collects_security_errors_into(transform_errors):
+                             continue
+                         transform_errors.extend(t_policy.collected_security_errors())
++
++                # Re-sanitize rawtext element contents (e.g. <style>, <script>,
++                # <title>, <textarea>) after sanitization transforms run. This
++                # guards against mutation XSS where custom policies allow
++                # foreign namespaces (SVG/MathML) or raw-text containers to
++                # survive sanitization: without this pass, text content could
++                # be re-interpreted as markup once the sanitized tree is
++                # serialized and re-parsed by a browser.
++                if final_sanitize_policy is not None:
++                    _sanitize_rawtext_element_contents(self.root, policy=final_sanitize_policy, errors=None)
+ 
+         if should_collect:
+             # Merge errors from both tokenizer and tree builder.
+```

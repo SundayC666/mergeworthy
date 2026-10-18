@@ -1,0 +1,22 @@
+Traceback (most recent call last):
+  File "/Users/sundaychen/secops-remediation-agent/harness/run_case.py", line 106, in run_one
+    call = call_model(build_client(cfg), cfg, system, user)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/sundaychen/secops-remediation-agent/harness/llm.py", line 292, in call_model
+    response = _create_with_backoff(
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/sundaychen/secops-remediation-agent/harness/llm.py", line 147, in _create_with_backoff
+    return client.chat.completions.create(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/sundaychen/secops-remediation-agent/venv/lib/python3.12/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/sundaychen/secops-remediation-agent/venv/lib/python3.12/site-packages/openai/resources/chat/completions/completions.py", line 1318, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/Users/sundaychen/secops-remediation-agent/venv/lib/python3.12/site-packages/openai/_base_client.py", line 1440, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/sundaychen/secops-remediation-agent/venv/lib/python3.12/site-packages/openai/_base_client.py", line 1213, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.UnprocessableEntityError: Error code: 422 - {'error': {'message': 'Budget has been exceeded! Key=gptbuilder-sc1003-i-self-69765b98-e02a-42e6-a663-ef86c683c549 (sk-...nAHQ) Current cost: 1.0053221, Max budget: 1.0', 'type': 'budget_exceeded', 'param': None, 'code': '422'}}

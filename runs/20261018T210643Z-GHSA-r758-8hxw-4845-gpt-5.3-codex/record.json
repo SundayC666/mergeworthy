@@ -1,0 +1,111 @@
+{
+  "run_id": "20261018T210643Z-GHSA-r758-8hxw-4845-gpt-5.3-codex",
+  "case": "GHSA-r758-8hxw-4845",
+  "project": "EmilStenstrom/justhtml",
+  "model": "gpt-5.3-codex",
+  "provider": "gateway",
+  "temperature": 1.0,
+  "prompt_version": "v1.1-snippet",
+  "started_at": "2026-10-18T21:06:43.583215+00:00",
+  "outcome": "not-fixed",
+  "gateway_spend_before_usd": 0.2113401,
+  "setup_s": 0.6,
+  "regression_baseline": {
+    "total": 8,
+    "passed": 8,
+    "not_passed": [],
+    "duration_s": 0.2
+  },
+  "target": {
+    "file": "src/justhtml/parser.py",
+    "qualname": "JustHTML.__init__",
+    "lines": [
+      57,
+      263
+    ]
+  },
+  "prompt_chars": 12109,
+  "scan_before": {
+    "bandit": {
+      "tool": "bandit",
+      "total_findings": 0,
+      "relevant": [],
+      "found_in_file": false,
+      "found_in_target": false,
+      "nearest_distance": null,
+      "error": null
+    },
+    "semgrep": {
+      "tool": "semgrep",
+      "total_findings": 0,
+      "relevant": [],
+      "found_in_file": false,
+      "found_in_target": false,
+      "nearest_distance": null,
+      "error": null
+    }
+  },
+  "model_call": {
+    "params_used": {
+      "temperature": 1.0,
+      "max_tokens": 16384
+    },
+    "notes": [],
+    "prompt_tokens": 2332,
+    "completion_tokens": 364,
+    "latency_s": 0.2,
+    "finish_reason": "stop"
+  },
+  "apply": {
+    "applied": true,
+    "reason": "",
+    "detail": "",
+    "files": [
+      "src/justhtml/parser.py"
+    ],
+    "touches_tests": false,
+    "would_apply_ignoring_whitespace": false
+  },
+  "scan_after": {
+    "bandit": {
+      "tool": "bandit",
+      "total_findings": 0,
+      "relevant": [],
+      "found_in_file": false,
+      "found_in_target": false,
+      "nearest_distance": null,
+      "error": null
+    },
+    "semgrep": {
+      "tool": "semgrep",
+      "total_findings": 0,
+      "relevant": [],
+      "found_in_file": false,
+      "found_in_target": false,
+      "nearest_distance": null,
+      "error": null
+    }
+  },
+  "security_tests": {
+    "passed": 0,
+    "failed": 4,
+    "total": 4,
+    "exit_code": 1,
+    "all_passed": false
+  },
+  "regression_after": {
+    "total": 8,
+    "passed": 8,
+    "not_passed": [],
+    "duration_s": 0.2
+  },
+  "verdict": {
+    "outcome": "not-fixed",
+    "broke": [],
+    "pre_existing_failures": [],
+    "newly_passing": []
+  },
+  "total_s": 6.4,
+  "gateway_spend_after_usd": 0.2113401,
+  "gateway_cost_usd_lower_bound": 0.0
+}

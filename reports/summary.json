@@ -1,0 +1,184 @@
+{
+  "runs_dir": "/Users/sundaychen/secops-remediation-agent/runs",
+  "records": 45,
+  "per_model": {
+    "claude-sonnet-5": {
+      "runs": 11,
+      "errors": 4,
+      "counts": {
+        "not-applied": 4,
+        "not-fixed": 3,
+        "fixed-but-broke": 0,
+        "fixed-and-clean": 4
+      },
+      "median_s": 21.3,
+      "mean_prompt_tokens": 3964,
+      "mean_completion_tokens": 2069,
+      "gateway_cost_usd_lower_bound": 0.1556,
+      "folders": [
+        "20261018T205850Z-CVE-2026-24486-claude-sonnet-5",
+        "20261018T205930Z-GHSA-r758-8hxw-4845-claude-sonnet-5",
+        "20261018T210217Z-CVE-2026-26331-claude-sonnet-5",
+        "20261018T210315Z-CVE-2026-32714-claude-sonnet-5",
+        "20261018T210401Z-CVE-2026-33175-claude-sonnet-5",
+        "20261018T210446Z-CVE-2026-24486-claude-sonnet-5",
+        "20261018T210517Z-GHSA-r758-8hxw-4845-claude-sonnet-5",
+        "20261018T210706Z-CVE-2026-26331-claude-sonnet-5",
+        "20261018T210757Z-CVE-2026-32714-claude-sonnet-5",
+        "20261018T210837Z-CVE-2026-33175-claude-sonnet-5",
+        "20261018T210904Z-CVE-2026-24486-claude-sonnet-5",
+        "20261018T210917Z-GHSA-r758-8hxw-4845-claude-sonnet-5",
+        "20261018T210929Z-CVE-2026-26331-claude-sonnet-5",
+        "20261018T211002Z-CVE-2026-32714-claude-sonnet-5",
+        "20261018T211049Z-CVE-2026-33175-claude-sonnet-5"
+      ]
+    },
+    "gpt-5.3-codex": {
+      "runs": 11,
+      "errors": 4,
+      "counts": {
+        "not-applied": 2,
+        "not-fixed": 5,
+        "fixed-but-broke": 0,
+        "fixed-and-clean": 4
+      },
+      "median_s": 11.2,
+      "mean_prompt_tokens": 2486,
+      "mean_completion_tokens": 491,
+      "gateway_cost_usd_lower_bound": 0.1108,
+      "folders": [
+        "20261018T205912Z-CVE-2026-24486-gpt-5.3-codex",
+        "20261018T210143Z-GHSA-r758-8hxw-4845-gpt-5.3-codex",
+        "20261018T210241Z-CVE-2026-26331-gpt-5.3-codex",
+        "20261018T210335Z-CVE-2026-32714-gpt-5.3-codex",
+        "20261018T210431Z-CVE-2026-33175-gpt-5.3-codex",
+        "20261018T210459Z-CVE-2026-24486-gpt-5.3-codex",
+        "20261018T210643Z-GHSA-r758-8hxw-4845-gpt-5.3-codex",
+        "20261018T210728Z-CVE-2026-26331-gpt-5.3-codex",
+        "20261018T210818Z-CVE-2026-32714-gpt-5.3-codex",
+        "20261018T210855Z-CVE-2026-33175-gpt-5.3-codex",
+        "20261018T210908Z-CVE-2026-24486-gpt-5.3-codex",
+        "20261018T210921Z-GHSA-r758-8hxw-4845-gpt-5.3-codex",
+        "20261018T210939Z-CVE-2026-26331-gpt-5.3-codex",
+        "20261018T211025Z-CVE-2026-32714-gpt-5.3-codex",
+        "20261018T211118Z-CVE-2026-33175-gpt-5.3-codex"
+      ]
+    },
+    "gpt-oss-120b": {
+      "runs": 12,
+      "errors": 3,
+      "counts": {
+        "not-applied": 12,
+        "not-fixed": 0,
+        "fixed-but-broke": 0,
+        "fixed-and-clean": 0
+      },
+      "median_s": 10.4,
+      "mean_prompt_tokens": 2459,
+      "mean_completion_tokens": 1178,
+      "gateway_cost_usd_lower_bound": 0.0373,
+      "folders": [
+        "20261018T205923Z-CVE-2026-24486-gpt-oss-120b",
+        "20261018T210207Z-GHSA-r758-8hxw-4845-gpt-oss-120b",
+        "20261018T210302Z-CVE-2026-26331-gpt-oss-120b",
+        "20261018T210348Z-CVE-2026-32714-gpt-oss-120b",
+        "20261018T210439Z-CVE-2026-33175-gpt-oss-120b",
+        "20261018T210511Z-CVE-2026-24486-gpt-oss-120b",
+        "20261018T210650Z-GHSA-r758-8hxw-4845-gpt-oss-120b",
+        "20261018T210745Z-CVE-2026-26331-gpt-oss-120b",
+        "20261018T210825Z-CVE-2026-32714-gpt-oss-120b",
+        "20261018T210859Z-CVE-2026-33175-gpt-oss-120b",
+        "20261018T210913Z-CVE-2026-24486-gpt-oss-120b",
+        "20261018T210925Z-GHSA-r758-8hxw-4845-gpt-oss-120b",
+        "20261018T210949Z-CVE-2026-26331-gpt-oss-120b",
+        "20261018T211039Z-CVE-2026-32714-gpt-oss-120b",
+        "20261018T211125Z-CVE-2026-33175-gpt-oss-120b"
+      ]
+    }
+  },
+  "matrix": {
+    "claude-sonnet-5": {
+      "CVE-2026-24486": {
+        "not-fixed": 1,
+        "fixed-and-clean": 1,
+        "error": 1
+      },
+      "GHSA-r758-8hxw-4845": {
+        "error": 2,
+        "not-applied": 1
+      },
+      "CVE-2026-26331": {
+        "not-fixed": 2,
+        "error": 1
+      },
+      "CVE-2026-32714": {
+        "fixed-and-clean": 3
+      },
+      "CVE-2026-33175": {
+        "not-applied": 3
+      }
+    },
+    "gpt-5.3-codex": {
+      "CVE-2026-24486": {
+        "not-fixed": 1,
+        "fixed-and-clean": 1,
+        "error": 1
+      },
+      "GHSA-r758-8hxw-4845": {
+        "not-fixed": 2,
+        "error": 1
+      },
+      "CVE-2026-26331": {
+        "not-fixed": 2,
+        "error": 1
+      },
+      "CVE-2026-32714": {
+        "fixed-and-clean": 3
+      },
+      "CVE-2026-33175": {
+        "not-applied": 2,
+        "error": 1
+      }
+    },
+    "gpt-oss-120b": {
+      "CVE-2026-24486": {
+        "not-applied": 2,
+        "error": 1
+      },
+      "GHSA-r758-8hxw-4845": {
+        "not-applied": 2,
+        "error": 1
+      },
+      "CVE-2026-26331": {
+        "not-applied": 3
+      },
+      "CVE-2026-32714": {
+        "not-applied": 3
+      },
+      "CVE-2026-33175": {
+        "not-applied": 2,
+        "error": 1
+      }
+    }
+  },
+  "apply_failures": {
+    "gpt-oss-120b": {
+      "git-apply-failed": 12
+    },
+    "claude-sonnet-5": {
+      "git-apply-failed": 4,
+      "(of which whitespace-only)": 1
+    },
+    "gpt-5.3-codex": {
+      "git-apply-failed": 2
+    }
+  },
+  "scanner_vs_verdict": {
+    "scanner blind before patch | not-fixed": 4,
+    "scanner blind before patch | not-applied": 12,
+    "saw it; still alerting | not-fixed": 4,
+    "saw it; patch not applied | not-applied": 6,
+    "saw it; went quiet | fixed-and-clean": 6,
+    "scanner blind before patch | fixed-and-clean": 2
+  }
+}
