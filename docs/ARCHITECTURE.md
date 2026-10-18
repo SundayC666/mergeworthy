@@ -225,12 +225,81 @@ three runs feed the merge gate (majority, worst case, or rate thresholds) is dec
 
 ## 7. Model Layer and Reproducibility
 
-<!--
-- 用哪幾個模型？為什麼選它們（跨廠商比較、同家族大小對照）？
-- 從 cwe-explainer 沿用了哪些設計？（OpenAI 相容介面換 base_url、參數自動調整、模型輸出當不可信輸入）
-- 為了讓別人能重跑，固定了哪些東西？（模型 ID、溫度、重跑次數、prompt 版本）
-- 每次執行記錄哪些欄位？要不要存 SQLite、用 SQL 產生報表？為什麼？
--->
+**Models.** Four: three through the Duke AI Gateway (claude-sonnet-5, gpt-5.3-codex,
+gpt-oss-120b) and one run locally with Ollama (gpt-oss:20b). Two comparisons drive the
+choice: across vendors (Anthropic's sonnet against OpenAI's codex) and within one family
+across sizes (gpt-oss 120b against 20b). The local model is also the free, offline,
+reproducible control; the three Gateway models produce the official numbers. The Gateway
+is a LiteLLM deployment with an OpenAI-compatible endpoint, so all four models share one
+calling path that differs only in base URL and key.
+
+**What is reused from cwe-explainer.** cwe-explainer is the code-review tool I built in
+a course (the course has agreed to its publication). Four practices carry over, not the
+code: all configuration comes from the environment and no key or URL is hard-coded;
+switching between the Gateway and Ollama is a change of `base_url`; when a model rejects
+a parameter (reasoning models refuse `temperature`, some endpoints want
+`max_completion_tokens`), the harness reads the 400 message to find which parameter,
+drops or renames it, retries, and records the adjustment, instead of keeping a
+hand-written parameter table per model; and the model's output is untrusted input: the
+harness only extracts a diff from the reply, applies it strictly and runs tests, and
+believes nothing the model says about itself.
+
+**What is fixed so that others can re-run this.**
+- The model id is given on the command line and written into every record.
+- `temperature` is set explicitly to 1.0. Two reasons: the measurement is of a model
+  under ordinary use, so the vendor default is the right value; but "default" cannot be
+  left implicit, because Claude and GPT on the Gateway default to 1.0 while Ollama
+  defaults to 0.8, and the same experiment would silently run under different
+  conditions. The parameters actually accepted are recorded in `params_used`.
+- `max_tokens` is 16,384, set once and not tuned. It started at 4,096 and was raised
+  after claude-sonnet-5 spent the whole budget thinking on the justhtml case and
+  returned nothing; a model that hits the ceiling again is recorded as an error subtype,
+  not given more, because the ceiling is a cost cap, not a quality knob. The full-length
+  reply is the most expensive call the harness makes; measured costs are in the results
+  report.
+- The prompt version is recorded (currently `v1.1-snippet`: the full advisory plus the
+  function or class that `locate.md` names, cut from the source with `ast` and shown
+  verbatim; v1.0 added a line-number gutter, the model copied it into the diff, and those
+  runs are not counted).
+- The Gateway's response cache is disabled per request (`cache: no-cache`). It was found
+  when an identical prompt came back in 0.06 s byte-for-byte; left on, "three runs per
+  pair" would have been one run copied three times.
+- Each case × model pair is run three times.
+- Cases are pinned to CVE-Bench commit 45cb1bf; the repository runs on Python 3.12.
+- Timeouts: 300 s per HTTP request; 600 s per project regression suite (the number can
+  change per case in `cves.yaml`, the rule does not).
+
+**What every run records.** One `record.json` with: case, model, provider, temperature,
+prompt version, start time; setup seconds; baseline test counts and the list of tests
+not passing; target file, function and line range, prompt size; the model call's
+accepted parameters, adjustment notes, input and output tokens, latency,
+`finish_reason`, the exact cost of the call, the Gateway's spend counter at that moment
+and the remaining per-minute token quota; the apply result and reason, files touched,
+whether tests were touched, whether ignoring whitespace would have applied it; the two
+scanner booleans before and after; security test counts; regression counts and
+not-passing list after the patch; the four-way verdict with its three lists; total
+seconds; Gateway spend before and after. Next to it sit the prompt, the reply, the
+patch, three test reports and the test output log.
+
+**Gateway limits and how the harness respects them.** The key allows $1 per 24 hours
+(reset at midnight US Eastern), 20 requests and 20,000 tokens per minute, with a soft
+limit at $0.80; it expires in January 2027. Four rules follow. Before every run the
+harness reads `/key/info` and refuses to start when less than $0.50 remains (room for
+several worst-case calls) or when the budget cannot be read at all (VPN down). A 422
+"budget exceeded" from the Gateway stops the whole wave, because the counter the Gateway
+enforces can run ahead of the one it reports (observed once at almost three times the
+reported spend, recovering within a minute); so the harness no longer trusts `/key/info`
+alone and also records the enforced counter from each response's headers. Transient
+errors (429, 5xx, connection) are retried twice quickly by the SDK and then twice more
+by the harness after 30 s and 60 s before the run is recorded as an error. On resume, a
+pair that keeps erroring gets at most two extra attempts, so one case cannot drain a
+day's budget. A preflight runs before every wave: case files present, scanners
+installed, Gateway reachable, one five-token ping per model.
+
+**Storage.** Results are kept as one JSON folder per run and aggregated directly by
+`harness/report.py` and `harness/report_html.py`; no database. Whether to load the
+records into SQLite and express the report in SQL is deferred to the Phase 2 gate,
+which is the first component that will need to query them (§13).
 
 ## 8. Relationship to Existing Code
 
@@ -278,9 +347,23 @@ three runs feed the merge gate (majority, worst case, or rate thresholds) is dec
 
 ## 13. Open Questions
 
-<!--
-還沒決定、或需要數據才能決定的事。
--->
+## 13. Open Questions
+
+- **Phase 3 has no ready-made security test.** CVE-Bench ships `test_security.py`; a
+  real package does not. Candidates: pick a package with a published CVE and write the
+  test from the advisory, or start from a scanner finding and write the test for it.
+  Decide before mid-November.
+- **`finish_reason: length` as a model property.** claude-sonnet-5 on justhtml exceeds
+  16,384 output tokens in some runs. It is recorded as an error subtype; whether to report
+  it as a model failure rate is open.
+- **Aggregating three runs per pair** (majority, worst case, or rates) is decided with
+  the gate (§6).
+- **10 or 20 cases.** Decided in early November from Wave 1's measured per-run cost
+  (see `reports/`).
+- **`git apply --ignore-whitespace`** stays off; the dry-run flag is recorded instead.
+- **Two Gateway spend counters.** The enforced counter and `/key/info` disagreed once by
+  almost 3×. Cause unknown; both are now recorded per run.
+- **SQLite for results** (§7): deferred until the gate needs queries.
 
 ## 14. AI Assistance
 
