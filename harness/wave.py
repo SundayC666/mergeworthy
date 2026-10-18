@@ -29,18 +29,27 @@ from harness.run_case import DEV_RUNS_DIR, RUNS_DIR, run_one
 from harness.setup_case import REPO_ROOT, Case, load_cases
 from harness.verify import OUTCOMES
 
+# A (case, model) pair may be attempted at most repeats + MAX_EXTRA_ATTEMPTS times.
+# Errors are re-run (they are not results), but not forever: claude-sonnet-5 on
+# justhtml can spend $0.25 hitting the output ceiling every single time.
+MAX_EXTRA_ATTEMPTS = 2
 
-def completed_counts(runs_dir: Path) -> Counter[tuple[str, str]]:
-    """How many real (non-error) records exist per (case, model) in runs_dir."""
-    counts: Counter[tuple[str, str]] = Counter()
+
+def completed_counts(runs_dir: Path) -> tuple[Counter[tuple[str, str]], Counter[tuple[str, str]]]:
+    """Per (case, model): how many real (non-error) records, and how many errors."""
+    real: Counter[tuple[str, str]] = Counter()
+    errors: Counter[tuple[str, str]] = Counter()
     for record_file in runs_dir.glob("*/record.json"):
         try:
             rec = json.loads(record_file.read_text())
         except json.JSONDecodeError:
             continue  # a half-written record is not a result
+        key = (rec.get("case"), rec.get("model"))
         if rec.get("outcome") in OUTCOMES:
-            counts[(rec["case"], rec["model"])] += 1
-    return counts
+            real[key] += 1
+        else:
+            errors[key] += 1
+    return real, errors
 
 
 def plan(cases: list[Case], models: list[str], repeats: int) -> list[tuple[Case, str, int]]:
@@ -49,10 +58,23 @@ def plan(cases: list[Case], models: list[str], repeats: int) -> list[tuple[Case,
 
 
 def pending(
-    jobs: list[tuple[Case, str, int]], done: Counter[tuple[str, str]]
+    jobs: list[tuple[Case, str, int]],
+    done: Counter[tuple[str, str]],
+    errors: Counter[tuple[str, str]] | None = None,
+    repeats: int | None = None,
 ) -> list[tuple[Case, str, int]]:
-    """Drop jobs whose (case, model) already has enough real records."""
-    return [(c, m, r) for c, m, r in jobs if done[(c.id, m)] <= r]
+    """Drop jobs whose (case, model) already has enough real records, or has used up
+    its attempts (real + errors >= repeats + MAX_EXTRA_ATTEMPTS)."""
+    errors = errors or Counter()
+    out = []
+    for c, m, r in jobs:
+        key = (c.id, m)
+        if done[key] > r:
+            continue
+        if repeats is not None and done[key] + errors[key] >= repeats + MAX_EXTRA_ATTEMPTS:
+            continue  # give up on this pair; its errors stay in the record
+        out.append((c, m, r))
+    return out
 
 
 def run_wave(
@@ -64,10 +86,21 @@ def run_wave(
     runner=run_one,
     out=sys.stdout,
 ) -> int:
-    done = completed_counts(runs_dir)
-    jobs = pending(plan(cases, models, repeats), done)
-    total = len(cases) * len(models) * repeats
-    print(f"wave: {total} jobs, {total - len(jobs)} already done, {len(jobs)} to run", file=out)
+    done, errors = completed_counts(runs_dir)
+    all_jobs = plan(cases, models, repeats)
+    jobs = pending(all_jobs, done, errors, repeats)
+    total = len(all_jobs)
+    given_up = sum(
+        1
+        for c, m, r in all_jobs
+        if done[(c.id, m)] <= r
+        and done[(c.id, m)] + errors[(c.id, m)] >= repeats + MAX_EXTRA_ATTEMPTS
+    )
+    print(
+        f"wave: {total} jobs, {total - len(jobs) - given_up} already done, "
+        f"{given_up} given up after repeated errors, {len(jobs)} to run",
+        file=out,
+    )
 
     results: Counter[tuple[str, str, str]] = Counter()
     for i, (case, model, r) in enumerate(jobs):
@@ -98,6 +131,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--provider", choices=["gateway", "ollama"], default=None)
     parser.add_argument("--dev", action="store_true", help="write to runs-dev/ (gitignored)")
+    parser.add_argument(
+        "--skip-preflight",
+        action="store_true",
+        help="do not ping each model and check tools/cases before starting",
+    )
     args = parser.parse_args(argv)
 
     load_dotenv(REPO_ROOT / ".env")
@@ -111,6 +149,15 @@ def main(argv: list[str] | None = None) -> int:
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     runs_dir = DEV_RUNS_DIR if args.dev else RUNS_DIR
     runs_dir.mkdir(exist_ok=True)
+
+    if not args.skip_preflight:
+        from harness.preflight import render, run_preflight
+
+        checks = run_preflight(cases, models, args.provider)
+        print(render(checks))
+        if any(not c.ok and c.fatal for c in checks):
+            print("wave: not started (preflight NO-GO)", file=sys.stderr)
+            return 1
     return run_wave(cases, models, args.repeats, args.provider, runs_dir)
 
 

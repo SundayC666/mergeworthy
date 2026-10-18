@@ -112,6 +112,9 @@ def run_one(case: Case, model: str, provider: str | None, runs_dir: Path = RUNS_
             "completion_tokens": call.completion_tokens,
             "latency_s": round(call.latency_s, 1),
             "finish_reason": call.finish_reason,
+            "cost_usd": call.cost_usd,
+            "gateway_spend_usd": call.gateway_spend_usd,
+            "rate_remaining_tokens": call.rate_remaining_tokens,
         }
 
         applied = apply_reply(case, call.text, run_dir / "model.patch")

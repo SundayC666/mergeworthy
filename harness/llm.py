@@ -29,7 +29,14 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
-from openai import APIConnectionError, BadRequestError, InternalServerError, OpenAI, RateLimitError
+from openai import (
+    APIConnectionError,
+    BadRequestError,
+    InternalServerError,
+    OpenAI,
+    RateLimitError,
+    UnprocessableEntityError,
+)
 
 GATEWAY_BASE_URL = "https://litellm.oit.duke.edu/v1"
 OLLAMA_BASE_URL = "http://localhost:11434/v1"
@@ -142,9 +149,24 @@ def _create_with_backoff(client: Any, notes: list[str], **kwargs: Any) -> Any:
     (the exception reaches us), wait RATE_LIMIT_BACKOFF_S and try again; after the last
     wait the exception propagates and the run is recorded as an error, to be re-run.
     """
+    completions = client.chat.completions
+    # The SDK's raw-response API exposes the gateway's headers, which carry the exact
+    # cost of this call and the spend counter the gateway actually enforces (the one
+    # /key/info shows can lag behind it). Fakes in tests have no with_raw_response.
+    raw_api = getattr(completions, "with_raw_response", None)
     for attempt, wait in enumerate((*RATE_LIMIT_BACKOFF_S, None)):
         try:
-            return client.chat.completions.create(**kwargs)
+            if raw_api is not None:
+                raw = raw_api.create(**kwargs)
+                return raw.parse(), {k.lower(): v for k, v in raw.headers.items()}
+            return completions.create(**kwargs), {}
+        except UnprocessableEntityError as exc:
+            # LiteLLM answers 422 "Budget has been exceeded!" when ITS spend counter
+            # (which can run ahead of /key/info) crosses the cap. Wave 1 burned ten
+            # error records in two minutes on this; it must stop the wave instead.
+            if "budget" in str(exc).lower():
+                raise BudgetExhausted(f"gateway refused the call: {str(exc)[:160]}") from exc
+            raise
         except _TRANSIENT as exc:
             if wait is None:
                 raise
@@ -243,6 +265,17 @@ class ModelCall:
     completion_tokens: int | None = None
     latency_s: float = 0.0
     finish_reason: str | None = None  # "stop" is normal; "length" means max_tokens ran out
+    # From the gateway's response headers (None on Ollama or when absent):
+    cost_usd: float | None = None  # x-litellm-response-cost: exact price of this call
+    gateway_spend_usd: float | None = None  # x-litellm-key-spend: the counter the gateway enforces
+    rate_remaining_tokens: int | None = None  # x-ratelimit-remaining-tokens (per-minute TPM)
+
+
+def _header_float(headers: Mapping[str, str], name: str) -> float | None:
+    try:
+        return float(headers[name])
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 # Parameters some gateways rename instead of rejecting outright.
@@ -289,7 +322,7 @@ def call_model(client: Any, config: ModelConfig, system: str, user: str) -> Mode
 
     for _ in range(len(params) + 2):
         try:
-            response = _create_with_backoff(
+            response, headers = _create_with_backoff(
                 client, notes, model=config.model, messages=messages, **params, **extra
             )
         except BadRequestError as exc:
@@ -322,9 +355,12 @@ def call_model(client: Any, config: ModelConfig, system: str, user: str) -> Mode
                     "completion_tokens": getattr(usage, "completion_tokens", None),
                     "latency_s": round(time.monotonic() - started, 1),
                     "finish_reason": finish_reason,
+                    "cost_usd": _header_float(headers, "x-litellm-response-cost"),
+                    "gateway_spend_usd": _header_float(headers, "x-litellm-key-spend"),
                 },
             )
 
+        remaining = _header_float(headers, "x-ratelimit-remaining-tokens")
         return ModelCall(
             text=text,
             model=config.model,
@@ -335,6 +371,9 @@ def call_model(client: Any, config: ModelConfig, system: str, user: str) -> Mode
             completion_tokens=getattr(usage, "completion_tokens", None),
             latency_s=latency,
             finish_reason=finish_reason,
+            cost_usd=_header_float(headers, "x-litellm-response-cost"),
+            gateway_spend_usd=_header_float(headers, "x-litellm-key-spend"),
+            rate_remaining_tokens=int(remaining) if remaining is not None else None,
         )
 
     raise ModelCallError(f"{config.model} rejected every parameter combination tried")

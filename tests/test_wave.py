@@ -58,13 +58,15 @@ def test_completed_counts_ignores_errors_and_half_written_records(tmp_path):
     write_record(tmp_path, "CVE-1", "m-a", "error", 2)
     (tmp_path / "003-broken").mkdir()
     (tmp_path / "003-broken" / "record.json").write_text("{not json")
-    assert completed_counts(tmp_path) == {("CVE-1", "m-a"): 1}
+    real, errors = completed_counts(tmp_path)
+    assert real == {("CVE-1", "m-a"): 1} and errors == {("CVE-1", "m-a"): 1}
 
 
 def test_pending_skips_pairs_that_already_have_enough_records(tmp_path):
     write_record(tmp_path, "CVE-1", "m-a", "not-fixed", 1)
     write_record(tmp_path, "CVE-1", "m-a", "not-fixed", 2)
-    jobs = pending(plan([C1], ["m-a", "m-b"], 2), completed_counts(tmp_path))
+    real, errors = completed_counts(tmp_path)
+    jobs = pending(plan([C1], ["m-a", "m-b"], 2), real, errors, repeats=2)
     assert [(c.id, m, r) for c, m, r in jobs] == [("CVE-1", "m-b", 0), ("CVE-1", "m-b", 1)]
 
 
@@ -75,7 +77,7 @@ def test_wave_runs_everything_and_summarises(tmp_path):
     out = io.StringIO()
     code = run_wave([C1, C2], MODELS, 1, None, tmp_path, runner=runner, out=out)
     assert code == 0 and len(runner.calls) == 4
-    assert "4 jobs, 0 already done, 4 to run" in out.getvalue()
+    assert "4 jobs, 0 already done, 0 given up after repeated errors, 4 to run" in out.getvalue()
 
 
 def test_wave_resumes_after_budget_stop(tmp_path):
@@ -95,5 +97,23 @@ def test_wave_resumes_after_budget_stop(tmp_path):
 def test_wave_reruns_error_records(tmp_path):
     write_record(tmp_path, "CVE-1", "m-a", "error", 1)
     runner = FakeRunner(tmp_path, ["fixed-and-clean"])
+    assert run_wave([C1], ["m-a"], 1, None, tmp_path, runner=runner, out=io.StringIO()) == 0
+    assert runner.calls == [("CVE-1", "m-a")]
+
+
+def test_wave_gives_up_after_repeated_errors(tmp_path):
+    # repeats=1 and MAX_EXTRA_ATTEMPTS=2: three error records mean the pair is skipped.
+    for n in (1, 2, 3):
+        write_record(tmp_path, "CVE-1", "m-a", "error", n)
+    runner = FakeRunner(tmp_path, ["fixed-and-clean"])
+    out = io.StringIO()
+    assert run_wave([C1], ["m-a"], 1, None, tmp_path, runner=runner, out=out) == 0
+    assert runner.calls == []
+    assert "1 given up after repeated errors" in out.getvalue()
+
+
+def test_wave_still_retries_a_pair_with_one_error(tmp_path):
+    write_record(tmp_path, "CVE-1", "m-a", "error", 1)
+    runner = FakeRunner(tmp_path, ["not-fixed"])
     assert run_wave([C1], ["m-a"], 1, None, tmp_path, runner=runner, out=io.StringIO()) == 0
     assert runner.calls == [("CVE-1", "m-a")]

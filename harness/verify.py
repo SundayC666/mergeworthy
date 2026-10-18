@@ -100,7 +100,45 @@ def run_regression_tests(
     outcomes = {t["nodeid"]: t["outcome"] for t in report.get("tests", [])}
     if not outcomes:
         raise HarnessError(f"regression suite for {case.id} collected zero tests")
+    compact_report(report_path, report)
     return RegressionResult(outcomes=outcomes, exit_code=result.returncode, duration_s=duration)
+
+
+def compact_report(report_path: Path, report: dict | None = None) -> None:
+    """Rewrite a pytest-json-report file keeping only what the record needs.
+
+    The full report carries every test's captured output and keywords (~5 MB for
+    python-multipart's 120 tests). We keep the summary, each test's outcome and
+    duration, and the failure text (truncated) for tests that did not pass, so the
+    folder stays traceable at ~1% of the size.
+    """
+    report = report if report is not None else json.loads(report_path.read_text())
+    tests = []
+    for t in report.get("tests", []):
+        item = {
+            "nodeid": t.get("nodeid"),
+            "outcome": t.get("outcome"),
+            "duration": t.get("duration"),
+        }
+        if t.get("outcome") != "passed":
+            for phase in ("setup", "call", "teardown"):
+                longrepr = (t.get(phase) or {}).get("longrepr")
+                if longrepr:
+                    item["longrepr"] = str(longrepr)[:2000]
+                    break
+        tests.append(item)
+    report_path.write_text(
+        json.dumps(
+            {
+                "compacted": True,
+                "summary": report.get("summary", {}),
+                "duration": report.get("duration"),
+                "exitcode": report.get("exitcode"),
+                "tests": tests,
+            },
+            indent=1,
+        )
+    )
 
 
 @dataclass

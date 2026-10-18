@@ -106,8 +106,13 @@ def run_security_tests(case: Case, report_path: Path) -> SecurityResult:
     result = subprocess.run(
         ["bash", "run_tests.sh", str(report_path)],
         cwd=case.task_dir,
+        capture_output=True,
+        text=True,
         check=False,
     )
+    # pytest's own output goes next to the report, not to the terminal: during a wave
+    # it buried the one line per run that matters.
+    report_path.with_suffix(".log").write_text(result.stdout + result.stderr)
     if not report_path.exists():
         raise HarnessError(
             f"run_tests.sh produced no report for {case.id} (exit {result.returncode})"

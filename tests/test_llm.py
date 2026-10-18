@@ -293,3 +293,67 @@ def test_client_gets_timeout_and_sdk_retries(monkeypatch):
     client = llm_mod.build_client(cfg)
     assert client.timeout == llm_mod.REQUEST_TIMEOUT_S
     assert client.max_retries == llm_mod.SDK_MAX_RETRIES
+
+
+def test_gateway_budget_422_stops_the_wave(monkeypatch):
+    # LiteLLM's own counter said "Budget has been exceeded!" while /key/info still
+    # showed room. That must become BudgetExhausted (stop), not ten error records.
+    from openai import UnprocessableEntityError
+
+    monkeypatch.setattr(llm_mod, "_sleep", lambda s: pytest.fail("no backoff for budget"))
+    request = httpx.Request("POST", "http://fake/v1/chat/completions")
+    exc = UnprocessableEntityError(
+        "Budget has been exceeded! Key=abc",
+        response=httpx.Response(422, request=request),
+        body=None,
+    )
+    client = FakeClient([exc])
+    with pytest.raises(BudgetExhausted, match="refused"):
+        call_model(client, config(), "s", "u")
+
+
+def test_other_422_is_not_treated_as_budget():
+    from openai import UnprocessableEntityError
+
+    client = FakeClient([status_error(UnprocessableEntityError, 422)])
+    with pytest.raises(UnprocessableEntityError):
+        call_model(client, config(), "s", "u")
+
+
+# --- gateway headers: exact cost and the enforced spend counter ---------------------
+
+
+class FakeRaw:
+    def __init__(self, parsed, headers):
+        self._parsed, self.headers = parsed, headers
+
+    def parse(self):
+        return self._parsed
+
+
+class FakeRawClient:
+    """A client whose completions expose with_raw_response, like the real SDK."""
+
+    def __init__(self, parsed, headers):
+        raw = SimpleNamespace(create=lambda **kw: FakeRaw(parsed, headers))
+        self.chat = SimpleNamespace(
+            completions=SimpleNamespace(create=lambda **kw: parsed, with_raw_response=raw)
+        )
+
+
+def test_gateway_headers_are_recorded():
+    client = FakeRawClient(
+        reply("ok"),
+        {
+            "X-LiteLLM-Response-Cost": "0.0123",
+            "x-litellm-key-spend": "0.456",
+            "x-ratelimit-remaining-tokens": "19980",
+        },
+    )
+    r = call_model(client, config(provider="gateway"), "s", "u")
+    assert (r.cost_usd, r.gateway_spend_usd, r.rate_remaining_tokens) == (0.0123, 0.456, 19980)
+
+
+def test_missing_headers_are_none_not_errors():
+    r = call_model(FakeClient([reply("ok")]), config(), "s", "u")
+    assert r.cost_usd is None and r.gateway_spend_usd is None and r.rate_remaining_tokens is None
