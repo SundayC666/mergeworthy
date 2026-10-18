@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mergeworthy results</title>
+<style>
+  body { font: 14px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; margin: 0; background: #fafafa; color: #222; }
+  header { padding: 16px 20px; border-bottom: 1px solid #ddd; background: #fff; }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  h2 { font-size: 16px; margin: 20px 0 8px; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 38%); gap: 16px; padding: 16px 20px; }
+  table { border-collapse: collapse; width: 100%; background: #fff; }
+  th, td { border: 1px solid #e0e0e0; padding: 6px 8px; text-align: left; vertical-align: top; font-size: 13px; }
+  th { background: #f3f3f3; font-weight: 600; }
+  td.cell { cursor: pointer; }
+  td.cell:hover { outline: 2px solid #1976d2; }
+  td.cell.active { outline: 2px solid #1976d2; background: #e3f2fd; }
+  .chip { display: inline-block; color: #fff; border-radius: 3px; padding: 1px 6px; margin: 1px 2px; font-size: 12px; white-space: nowrap; }
+  #detail { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; background: #fff; border: 1px solid #ddd; padding: 12px; }
+  .run { border-top: 1px solid #eee; padding: 10px 0; }
+  .run:first-child { border-top: 0; }
+  .meta { color: #555; font-size: 12px; }
+  pre { background: #272822; color: #f8f8f2; padding: 8px; overflow: auto; font-size: 12px; max-height: 360px; }
+  .ok { color: #2e7d32; }
+  .bad { color: #c62828; }
+  .muted { color: #888; }
+  details summary { cursor: pointer; color: #1976d2; }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    #detail { position: static; max-height: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>mergeworthy · results</h1>
+  <div class="meta">__RUN_COUNT__ runs from <code>__RUNS_DIR__/</code>, generated __GENERATED__.
+    Outcomes come from security tests and before/after regression runs (ARCHITECTURE §5);
+    scanner results are recorded only. Click a cell to see every run behind it, including
+    the diff the model produced.</div>
+  <div style="margin-top:6px">__LEGEND__</div>
+</header>
+<main>
+  <section>
+    <h2>Model × case</h2>
+    <table>
+      <thead><tr><th>model</th>__CASE_HEADER__</tr></thead>
+      <tbody>__MATRIX_ROWS__</tbody>
+    </table>
+    <h2>Per model (errors are not in any rate)</h2>
+    <table>
+      <thead><tr><th>model</th><th>runs</th>__OUTCOME_HEADER__<th>errors</th><th>median s</th></tr></thead>
+      <tbody>__SUMMARY_ROWS__</tbody>
+    </table>
+  </section>
+  <aside id="detail"><div class="muted">Select a cell.</div></aside>
+</main>
+<script>
+const RUNS = __RUNS_JSON__;
+const COLORS = __COLORS_JSON__;
+const LABELS = __LABELS_JSON__;
+const CASE_LABELS = __CASE_LABELS_JSON__;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => (
+  {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const yn = v => v === true ? "yes" : v === false ? "no" : "–";
+
+function scanRow(label, s) {
+  const parts = Object.entries(s || {}).map(
+    ([t, v]) => `${t}: file ${yn(v[0])}, target ${yn(v[1])}`);
+  return parts.length ? `<div class="meta">${label}: ${esc(parts.join(" · "))}</div>` : "";
+}
+
+function renderRun(r) {
+  const color = COLORS[r.outcome] || "#999";
+  const chip = `<span class="chip" style="background:${color}">${esc(LABELS[r.outcome] || r.outcome)}</span>`;
+  const cost = r.cost_usd == null ? "–" : Number(r.cost_usd).toFixed(4);
+  let body = `<div><strong>${esc(r.folder)}</strong> ${chip}</div>`;
+  body += `<div class="meta">${esc(r.total_s)} s · tokens in/out ${esc(r.tokens[0])}/${esc(r.tokens[1])}`
+        + ` · finish ${esc(r.finish_reason)} · cost $${cost} · prompt ${esc(r.prompt_version)}</div>`;
+  if (r.error) body += `<div class="bad">error: ${esc(r.error)}</div>`;
+  if (r.apply) {
+    const applied = r.apply.applied
+      ? '<span class="ok">applied</span>'
+      : '<span class="bad">' + esc(r.apply.reason) + '</span>';
+    body += `<div class="meta">apply: ${applied}`
+          + (r.apply.touches_tests ? " · touches tests" : "")
+          + (r.apply.would_apply_ignoring_whitespace ? " · would apply ignoring whitespace" : "")
+          + (r.apply.files && r.apply.files.length ? " · " + esc(r.apply.files.join(", ")) : "")
+          + `</div>`;
+    if (!r.apply.applied && r.apply.detail) {
+      body += `<details><summary>git said</summary><pre>${esc(r.apply.detail)}</pre></details>`;
+    }
+  }
+  if (r.security) {
+    const skipped = r.security.total - r.security.passed - r.security.failed;
+    body += `<div class="meta">security test: ${r.security.passed} passed, ${r.security.failed} failed`
+          + (skipped > 0 ? ` (${skipped} skipped by the benchmark)` : "") + `</div>`;
+  }
+  if (r.baseline && r.after) {
+    body += `<div class="meta">regression: ${r.baseline.passed}/${r.baseline.total} before`
+          + ` → ${r.after.passed}/${r.after.total} after</div>`;
+  }
+  if (r.verdict) {
+    if (r.verdict.broke && r.verdict.broke.length) {
+      body += `<div class="bad">broke: ${esc(r.verdict.broke.join(", "))}</div>`;
+    }
+    if (r.verdict.pre_existing_failures && r.verdict.pre_existing_failures.length) {
+      body += `<div class="meta">pre-existing failures (excluded): `
+            + `${esc(r.verdict.pre_existing_failures.join(", "))}</div>`;
+    }
+  }
+  body += scanRow("scan before", r.scan_before) + scanRow("scan after", r.scan_after);
+  if (r.patch) {
+    body += `<details><summary>diff the model produced</summary><pre>${esc(r.patch)}</pre></details>`;
+  }
+  return `<div class="run">${body}</div>`;
+}
+
+function show(model, c) {
+  const runs = RUNS.filter(r => r.model === model && r.case === c);
+  document.getElementById("detail").innerHTML =
+    `<h2 style="margin-top:0">${esc(model)} × ${esc(c)} `
+    + `<span class="muted">(${runs.length} runs)</span></h2>`
+    + (CASE_LABELS[c] ? `<div class="meta">${esc(CASE_LABELS[c])}</div>` : "")
+    + runs.map(renderRun).join("");
+  document.querySelectorAll("td.cell").forEach(td => td.classList.toggle(
+    "active", td.dataset.model === model && td.dataset.case === c));
+}
+
+document.querySelectorAll("td.cell").forEach(td => td.addEventListener(
+  "click", () => show(td.dataset.model, td.dataset.case)));
+</script>
+</body>
+</html>
