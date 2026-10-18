@@ -53,12 +53,66 @@ The second mode is fixing the vulnerability while breaking functionality. In one
 
 ## 4. System Overview
 
-<!--
-- 三個階段（校準 → 閘門 → 實戰）各自的目的是什麼？為什麼順序不能反？
-- 資料流：setup_case → scan → patch → verify → report。
-  每一步的「輸入」是什麼、「輸出」是什麼檔案或格式？（例：scan 輸出 SARIF）
-- 可以畫一張簡單的圖（ASCII 或 Mermaid 都可以）。
--->
+**Three phases, in a fixed order.** Phase 1, *calibrate*: on historical CVEs whose
+answers are known, measure each model's fix rate and break rate. Phase 2, *gate*: turn
+those numbers into merge rules that a patch bot enforces in CI. Phase 3, *field test*:
+run the whole pipeline on a real open-source package in my own fork and publish the
+result.
+
+The order cannot be reversed because the point of the project is to quantify "fixed
+without breaking anything". Without Phase 1's numbers, the Phase 2 rules could still
+be written, but the thresholds would be my guesses; only Phase 1 can say what "break
+rate below X%" should be. Without the Phase 2 gate, Phase 3 would produce what every
+existing tool already produces, "an AI opened a PR", with nobody answering whether that
+PR may be merged and no data for a reviewer to decide with.
+
+**One run.** The unit of Phase 1 is one case × one model × one attempt, driven by
+`harness/run_case.py` across the harness modules. The input is one case from
+`benchmarks/cves.yaml`, which points at a CVE-Bench task directory pinned to a fixed
+commit. Before anything else, the runner checks the remaining Gateway budget and
+refuses to start a run when it is below the reserve (§7). Then:
+
+| Step | Module | What happens | Output |
+|---|---|---|---|
+| 1 | `setup_case.setup` | runs the task's `setup.sh`: the repo is reset to the vulnerable commit | `repo/` at the vulnerable commit |
+| 2 | `verify.run_regression_tests` | runs the project's own pytest suite **before** the patch and records which tests pass (the baseline) | `regression_baseline.json` |
+| 3 | `patch.load_target`, `build_prompt_v1` | reads `advisory.md`, cuts the function or class that `locate.md` names out of the source with `ast`, builds the prompt | `prompt.md` |
+| 4 | `scan.scan_target` | Bandit and Semgrep scan the target file; two booleans are recorded (a matching-CWE finding anywhere in the file / inside the target range). Record only | `scan_before` in the record |
+| 5 | `llm.call_model` | calls the model; records tokens, latency, finish reason and the parameters actually accepted | `reply.md` |
+| 6 | `patch.apply_reply` | extracts the unified diff and applies it strictly with `git apply --recount`; on failure records why (no diff / git refused, with git's message) and whether ignoring whitespace would have applied it; flags patches that touch test files | `model.patch` |
+| 7 | `scan.scan_target` | scans again after the patch | `scan_after` |
+| 8 | `setup_case.run_security_tests` | runs the task's `run_tests.sh`, which first copies the **trusted** `test_security.py` into the repo, so a patch that deletes or edits the test has no effect | `security_report.json` |
+| 9 | `verify.run_regression_tests` | runs the project's own suite again | `regression_after.json` |
+| 10 | `verify.classify` | combines 6, 8, 2 and 9 into one of four outcomes (rules in §5) | `outcome` and `verdict` in `record.json` |
+
+**What one run leaves behind.** One folder named `<timestamp>-<case>-<model>` with
+up to seven files: `prompt.md`, `reply.md`, `model.patch`, three test reports, and
+`record.json` (model parameters, tokens, seconds, Gateway spend before and after, apply
+details, both scans, the baseline and after test counts with the list of tests that
+did not pass, the verdict). A run that stops early (the diff did not apply) has fewer
+files, because the later steps never ran. Official runs go to `runs/` and are
+committed; development and smoke runs go to `runs-dev/`, which is ignored by git. Any
+number in a report can be traced back to the folder that produced it.
+
+**What is not a result.** A diff that does not apply is one of the four outcomes
+(*not applied*), not an error. Errors are failures of the pipeline itself: the setup
+script crashes, the model returns an empty reply, the budget is insufficient, a test run
+produces no report, the baseline suite cannot run, a timeout. These are recorded as
+`outcome: error`, the folder is kept, and they never enter the four-way count; the
+cause is fixed and the run repeated. The test for telling the two apart: in this
+failure, did the model actually get a chance?
+
+**A whole wave.** `harness/wave.py` expands cases × models × repeats into a job list,
+ordered so that within each round every model runs once on a case before the next case;
+if the budget runs out halfway, every model still has data. On restart it skips
+(case, model) pairs that already have enough non-error records, and on budget
+exhaustion it stops explicitly and lists what is left.
+
+```
+cves.yaml ─► budget check ─► setup ─► baseline tests ─► prompt ─► scan ─► model ─► git apply
+                                                                                      │
+                        record.json ◄── verdict ◄── tests after ◄── security test ◄── scan
+```
 
 ## 5. Outcome Classification
 
