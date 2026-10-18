@@ -303,11 +303,48 @@ which is the first component that will need to query them (§13).
 
 ## 8. Relationship to Existing Code
 
-<!--
-- 原本的 CVE 查詢／KEV 對照／SLA 追蹤保留下來扮演什麼角色？
-- 什麼已經移走（釣魚分析 → phishing-analyzer branch）？
-- 已知但還沒修的既有問題：NVD 查詢失敗時顯示「系統安全」（fail-open）、CVE 頁面 XSS。
--->
+**What the repository was.** Before September 2026 this repository was a FastAPI web
+app for CVE triage: CPE-based lookup against NIST NVD, cross-reference with the CISA
+KEV catalogue, SLA tracking from a JSON policy, OS detection from the User-Agent, and an
+optional local LLM (Ollama) for supplementary analysis. It also had a phishing-email
+analyzer and a ChromaDB + Sentence Transformers retrieval fallback. All of that is Part 2
+of the README.
+
+**What was moved or removed, and why.**
+- The phishing analyzer lives on the `phishing-analyzer` branch. It had nothing to do
+  with patch verification and would have confused the question the repository answers.
+- The retrieval fallback was removed on 2026-09-27 (tag `v2.0-rag-fallback` marks the
+  last version with it). The harness has no retrieval need, retrieval would have hurt
+  reproducibility, the component was broken at start-up, and its dependency carried
+  unfixed CVEs.
+- Dead code (`llm_interface.py`), an unused `POST /api/versions/refresh` endpoint whose
+  docstring claimed to refresh from NVD but only re-read a local file, and the
+  `set_version()` method nobody called were deleted.
+
+**What was fixed in the web app, because it was the first lesson of the project.** On
+2026-09-26, while verifying the clean-up, an invalid NVD API key made the app show "No
+vulnerabilities found" instead of an error. A lookup failure was being presented as a
+safe result: fail-open. The fix (2026-10-01) raises a dedicated error in the collector
+and returns HTTP 503 with an explicit "result is unknown"; a multi-page query in which
+one page fails counts as a failure. That incident is where the harness's own rule comes
+from: a run that cannot be evaluated is an error, never a result (§5). Since then the
+app also rate-limits all eight endpoints, logs blocked input and rate-limit hits as
+security events with the client address, listens on loopback by default, and is gated
+in CI by ruff, pytest and Bandit. One known issue remains open: the CVE page inserts
+NVD descriptions into the DOM with `innerHTML` (an XSS sink); it is scheduled with a
+CSP for 2026-11-19.
+
+**The role of the web app now.** It answers *which* vulnerability matters: whether a
+CVE is in KEV, how many SLA days remain. The harness answers whether an AI patch for
+that vulnerability can be merged. They are the two halves of a remediation pipeline,
+intake and decision, and they are **not connected yet**: the harness takes its cases
+from `benchmarks/cves.yaml`, not from the app. The natural joint is Phase 3, where
+KEV status and SLA could decide which finding gets patched first; whether to build
+that joint is an open question (§13), not a promise.
+
+**Shared code.** The harness reuses nothing from the web app except the repository,
+the CI and the conventions (pinned dependencies, input treated as untrusted, tests
+before fixes). The standalone CVE-triage skill under `plugins/` is independent of both.
 
 ## 9. Security of the Harness
 
@@ -321,11 +358,38 @@ which is the first component that will need to query them (§13).
 
 ## 10. Disclosure and Contribution Rules (Phase 3)
 
-<!--
-- 只在自己的 fork 做實驗，不送上游 PR。為什麼？
-- 公開報告放什麼、不放什麼？
-- 如果發現尚未公開、可被利用的漏洞怎麼辦？（負責任揭露、SECURITY.md）
--->
+**Everything happens in my own fork.** Phase 3 clones a real open-source Python package
+into a fork under my account and runs the full pipeline there. The patch bot opens pull
+requests only in that fork. Nothing is pushed, proposed or reported to the upstream
+project as part of this work.
+
+**Why no upstream pull requests.** Three reasons. The purpose is measurement, not
+contribution: the question is whether a patch *could* be merged safely, and that is
+answered in my fork. Unsolicited AI-generated pull requests are a real cost to
+maintainers, and this project should not add to it. And a patch that passed the harness
+has still only passed the tests the project happens to have (§5); sending it upstream
+would overstate what was proven.
+
+**What the public report contains.** Aggregate numbers per model and case; the CVE-Bench
+cases themselves, which are already public CVEs with published fixes; general scanner
+findings of the kind any user of Bandit or Semgrep would see; and the harness's own
+records, which are committed in `runs/`. It contains no proof-of-concept exploit and no
+information that would help attack the Phase 3 package.
+
+**If the pipeline finds a vulnerability that is not public.** It is not written into the
+report, not committed to the fork in an identifiable form, and not discussed publicly.
+It is reported privately to the project's maintainers through their `SECURITY.md` (or
+the platform's private vulnerability reporting), with the finding and, if useful, the
+candidate patch. Publication waits until the maintainers have fixed and disclosed it,
+or until their stated disclosure window has passed. The report then describes it only
+as the maintainers have.
+
+**Licences and data.** CVE-Bench is MIT-licensed and is used from its own checkout
+pinned to one commit; its task files are not copied into this repository, and
+`benchmarks/cves.yaml` records only identifiers, commits, CWE and CVSS. NVD data is
+public domain; the CISA KEV catalogue is CC0. The Phase 3 package will be chosen with
+a licence that permits forking and modification, which in practice means any OSI
+licence.
 
 ## 11. Secure SDLC Mapping
 
@@ -344,8 +408,6 @@ which is the first component that will need to query them (§13).
 這是證明「是你做的決定」最有力的地方。第一條可以寫：
   「沿用 CVE-Bench 的案例，而不是自己挑 10 個 CVE 自己架環境」
 -->
-
-## 13. Open Questions
 
 ## 13. Open Questions
 
