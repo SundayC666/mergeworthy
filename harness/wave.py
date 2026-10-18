@@ -31,7 +31,7 @@ from harness.verify import OUTCOMES
 
 # A (case, model) pair may be attempted at most repeats + MAX_EXTRA_ATTEMPTS times.
 # Errors are re-run (they are not results), but not forever: claude-sonnet-5 on
-# justhtml can spend $0.25 hitting the output ceiling every single time.
+# justhtml can spend ~$0.09 hitting the output ceiling every single time.
 MAX_EXTRA_ATTEMPTS = 2
 
 

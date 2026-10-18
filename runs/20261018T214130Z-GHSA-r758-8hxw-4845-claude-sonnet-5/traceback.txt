@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/Users/sundaychen/secops-remediation-agent/harness/run_case.py", line 106, in run_one
+    call = call_model(build_client(cfg), cfg, system, user)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/sundaychen/secops-remediation-agent/harness/llm.py", line 350, in call_model
+    # not one of the four outcomes.
+harness.llm.ModelCallError: claude-sonnet-5 returned an empty reply (finish_reason='length')

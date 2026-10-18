@@ -1,0 +1,52 @@
+{
+ "compacted": true,
+ "summary": {
+  "passed": 8,
+  "total": 8,
+  "collected": 8
+ },
+ "duration": 0.07410097122192383,
+ "exitcode": 0,
+ "tests": [
+  {
+   "nodeid": "tests/test_transforms_sanitize_integration.py::TestTransformsSanitizeIntegration::test_constructor_time_default_sanitization_strips_invisible_unicode",
+   "outcome": "passed",
+   "duration": null
+  },
+  {
+   "nodeid": "tests/test_transforms_sanitize_integration.py::TestTransformsSanitizeIntegration::test_constructor_time_sanitization_resolves_protocol_relative_links",
+   "outcome": "passed",
+   "duration": null
+  },
+  {
+   "nodeid": "tests/test_transforms_sanitize_integration.py::TestTransformsSanitizeIntegration::test_constructor_time_sanitization_strips_disallowed_href_schemes_from_linkify",
+   "outcome": "passed",
+   "duration": null
+  },
+  {
+   "nodeid": "tests/test_transforms_sanitize_integration.py::TestTransformsSanitizeIntegration::test_constructor_time_sanitization_strips_unsafe_attrs",
+   "outcome": "passed",
+   "duration": null
+  },
+  {
+   "nodeid": "tests/test_transforms_sanitize_integration.py::TestTransformsSanitizeIntegration::test_explicit_sanitize_allows_later_transforms_to_reintroduce_unsafe_attrs",
+   "outcome": "passed",
+   "duration": null
+  },
+  {
+   "nodeid": "tests/test_transforms_sanitize_integration.py::TestTransformsSanitizeIntegration::test_explicit_sanitize_disables_implicit_final_sanitize",
+   "outcome": "passed",
+   "duration": null
+  },
+  {
+   "nodeid": "tests/test_transforms_sanitize_integration.py::TestTransformsSanitizeIntegration::test_safe_alias_still_works",
+   "outcome": "passed",
+   "duration": null
+  },
+  {
+   "nodeid": "tests/test_transforms_sanitize_integration.py::TestTransformsSanitizeIntegration::test_safe_and_sanitize_conflict_raises",
+   "outcome": "passed",
+   "duration": null
+  }
+ ]
+}

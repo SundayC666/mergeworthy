@@ -1,0 +1,64 @@
+{
+  "run_id": "20261018T213714Z-GHSA-r758-8hxw-4845-claude-sonnet-5",
+  "case": "GHSA-r758-8hxw-4845",
+  "project": "EmilStenstrom/justhtml",
+  "model": "claude-sonnet-5",
+  "provider": "gateway",
+  "temperature": 1.0,
+  "prompt_version": "v1.1-snippet",
+  "started_at": "2026-10-18T21:37:14.065927+00:00",
+  "outcome": "error",
+  "gateway_spend_before_usd": 0.3561403499999998,
+  "setup_s": 1.8,
+  "regression_baseline": {
+    "total": 8,
+    "passed": 8,
+    "not_passed": [],
+    "duration_s": 0.4
+  },
+  "target": {
+    "file": "src/justhtml/parser.py",
+    "qualname": "JustHTML.__init__",
+    "lines": [
+      57,
+      263
+    ]
+  },
+  "prompt_chars": 12109,
+  "scan_before": {
+    "bandit": {
+      "tool": "bandit",
+      "total_findings": 0,
+      "relevant": [],
+      "found_in_file": false,
+      "found_in_target": false,
+      "nearest_distance": null,
+      "error": null
+    },
+    "semgrep": {
+      "tool": "semgrep",
+      "total_findings": 0,
+      "relevant": [],
+      "found_in_file": false,
+      "found_in_target": false,
+      "nearest_distance": null,
+      "error": null
+    }
+  },
+  "error": "ModelCallError: claude-sonnet-5 returned an empty reply (finish_reason='length')",
+  "model_call": {
+    "params_used": {
+      "temperature": 1.0,
+      "max_tokens": 16384
+    },
+    "prompt_tokens": 4159,
+    "completion_tokens": 16384,
+    "latency_s": 161.7,
+    "finish_reason": "length",
+    "cost_usd": 0.086079,
+    "gateway_spend_usd": 0.44221934999999984
+  },
+  "total_s": 167.9,
+  "gateway_spend_after_usd": 0.3562831999999998,
+  "gateway_cost_usd_lower_bound": 0.0001
+}

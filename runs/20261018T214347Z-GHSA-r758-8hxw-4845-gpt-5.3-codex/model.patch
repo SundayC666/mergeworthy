@@ -1,0 +1,45 @@
+--- a/src/justhtml/parser.py
++++ b/src/justhtml/parser.py
+@@ -182,6 +182,25 @@
+                 if compiled_transforms is None:
+                     compiled_transforms = compile_transforms(tuple(final_transforms))
+                 apply_compiled_transforms(self.root, compiled_transforms, errors=transform_errors)
++
++                # Defense-in-depth against parser differential / mutation-XSS:
++                # when sanitization preserves foreign namespaces, disallow
++                # raw-text containers (notably <style>) in foreign content.
++                # Such combinations can serialize to markup that reparses
++                # unsafely in downstream HTML parsers/browsers.
++                from .sanitize import is_raw_text_element  # noqa: PLC0415
++
++                def _collect_foreign_rawtext_nodes(node: Node, out: list[Node]) -> None:
++                    if node.name != "#text":
++                        ns = getattr(node, "namespace", None)
++                        if ns:
++                            local_name = getattr(node, "name", "")
++                            if local_name and is_raw_text_element(local_name):
++                                out.append(node)
++                        for child in node:
++                            _collect_foreign_rawtext_nodes(child, out)
++
++                foreign_rawtext_nodes: list[Node] = []
++                _collect_foreign_rawtext_nodes(self.root, foreign_rawtext_nodes)
+ 
+                 # Merge collected security errors into the document error list.
+                 # This mirrors the old behavior where safe output could feed
+@@ -194,6 +213,15 @@
+                         if t_policy is not None and t_policy.unsafe_handling == "collect":
+                             if t_policy.collects_security_errors_into(transform_errors):
+                                 continue
++                            # Ensure mutation-XSS hardening findings are surfaced
++                            # through the same policy error collection channel.
++                            for n in foreign_rawtext_nodes:
++                                t_policy.handle_unsafe(
++                                    "foreign_rawtext_element",
++                                    n,
++                                    transform_errors,
++                                    detail=f"raw-text element <{n.name}> in foreign namespace is unsafe",
++                                )
+                             transform_errors.extend(t_policy.collected_security_errors())
+ 
+         if should_collect:

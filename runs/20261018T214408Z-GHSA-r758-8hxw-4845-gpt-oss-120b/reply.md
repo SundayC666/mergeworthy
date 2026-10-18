@@ -1,0 +1,42 @@
+```diff
+--- a/src/justhtml/parser.py
++++ b/src/justhtml/parser.py
+@@
+         if isinstance(html, (Node, Text)):
+             html_for_serialization = html
+             if sanitize_enabled or has_sanitize_transform:
+                 from .sanitize import (  # noqa: PLC0415
+                     DEFAULT_DOCUMENT_POLICY,
+                     DEFAULT_POLICY,
+                     _sanitize_rawtext_element_contents,
+                 )
+ 
+                 html_for_serialization = html.clone_node(deep=True)
+                 effective_policy = explicit_sanitize_policy or policy
+                 if effective_policy is None:
+                     effective_policy = (
+                         DEFAULT_DOCUMENT_POLICY if html_for_serialization.name == "#document" else DEFAULT_POLICY
+                     )
++                # Ensure foreign namespaces are dropped during sanitization to prevent
++                # mutation XSS when custom policies allow them.
++                if not getattr(effective_policy, "drop_foreign_namespaces", True):
++                    effective_policy.drop_foreign_namespaces = True
+                 _sanitize_rawtext_element_contents(html_for_serialization, policy=effective_policy, errors=None)
+             html_str = serialize_html(html_for_serialization, pretty=False)
+@@
+             # Auto-append a final Sanitize step only if the user didn't include
+             # Sanitize anywhere in their transform list.
+             if sanitize_enabled and not has_sanitize_transform:
+                 effective_policy = (
+                     policy
+                     if policy is not None
+                     else (DEFAULT_DOCUMENT_POLICY if self.root.name == "#document" else DEFAULT_POLICY)
+                 )
++                # Enforce dropping foreign namespaces during auto sanitization.
++                if not getattr(effective_policy, "drop_foreign_namespaces", True):
++                    effective_policy.drop_foreign_namespaces = True
+                 # Avoid stale collected errors on reused policy objects.
+                 if effective_policy.unsafe_handling == "collect":
+                     effective_policy.reset_collected_security_errors()
+                 final_transforms.append(Sanitize(policy=effective_policy))
+```

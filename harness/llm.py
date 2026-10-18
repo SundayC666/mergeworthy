@@ -179,8 +179,9 @@ def _create_with_backoff(client: Any, notes: list[str], **kwargs: Any) -> Any:
 
 # --- budget -------------------------------------------------------------------------
 
-# Reserve two worst-case calls (16384 output tokens × claude-sonnet-5 ≈ $0.25 each):
-# a long justhtml-sized run must never be cut off halfway through the day's budget.
+# Reserve room for a few worst-case calls. A full 16384-token sonnet reply costs about
+# $0.09 at the Gateway's prices (measured 2026-10-18 from x-litellm-response-cost;
+# list price would be ~$0.25), so $0.50 covers five of them and the user kept it.
 BUDGET_RESERVE_USD: float = 0.50
 
 
