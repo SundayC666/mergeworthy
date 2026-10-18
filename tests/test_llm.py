@@ -241,3 +241,55 @@ def test_unreachable_gateway_is_fail_closed(monkeypatch):
     monkeypatch.setattr(llm_mod, "BUDGET_RESERVE_USD", 0.30)
     with pytest.raises(BudgetExhausted, match="VPN"):
         assert_budget(config())
+
+
+# --- transient errors: slow retry on top of the SDK's fast retries ---------------------
+
+from openai import APIConnectionError, InternalServerError, RateLimitError  # noqa: E402
+
+
+def status_error(cls, status: int):
+    request = httpx.Request("POST", "http://fake/v1/chat/completions")
+    return cls("boom", response=httpx.Response(status, request=request), body=None)
+
+
+def test_rate_limit_is_retried_after_a_long_wait(monkeypatch):
+    waits = []
+    monkeypatch.setattr(llm_mod, "_sleep", waits.append)
+    client = FakeClient([status_error(RateLimitError, 429), reply("ok")])
+    result = call_model(client, config(), "s", "u")
+    assert result.text == "ok" and waits == [30]
+    assert result.notes == ["RateLimitError on attempt 1; waiting 30s before retry"]
+
+
+def test_persistent_rate_limit_gives_up_after_the_backoff_schedule(monkeypatch):
+    waits = []
+    monkeypatch.setattr(llm_mod, "_sleep", waits.append)
+    client = FakeClient([status_error(RateLimitError, 429)] * 3)
+    with pytest.raises(RateLimitError):
+        call_model(client, config(), "s", "u")
+    assert waits == [30, 60] and len(client.calls) == 3
+
+
+def test_server_and_connection_errors_use_the_same_path(monkeypatch):
+    monkeypatch.setattr(llm_mod, "_sleep", lambda s: None)
+    request = httpx.Request("POST", "http://fake/v1/chat/completions")
+    client = FakeClient(
+        [status_error(InternalServerError, 503), APIConnectionError(request=request), reply("ok")]
+    )
+    result = call_model(client, config(), "s", "u")
+    assert result.text == "ok" and len(result.notes) == 2
+
+
+def test_bad_request_is_never_retried_as_transient(monkeypatch):
+    monkeypatch.setattr(llm_mod, "_sleep", lambda s: pytest.fail("must not sleep on a 400"))
+    client = FakeClient([bad_request("model not found")])
+    with pytest.raises(BadRequestError):
+        call_model(client, config(), "s", "u")
+
+
+def test_client_gets_timeout_and_sdk_retries(monkeypatch):
+    cfg = load_model_config("x", provider="ollama", env={})
+    client = llm_mod.build_client(cfg)
+    assert client.timeout == llm_mod.REQUEST_TIMEOUT_S
+    assert client.max_retries == llm_mod.SDK_MAX_RETRIES

@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
-from openai import BadRequestError, OpenAI
+from openai import APIConnectionError, BadRequestError, InternalServerError, OpenAI, RateLimitError
 
 GATEWAY_BASE_URL = "https://litellm.oit.duke.edu/v1"
 OLLAMA_BASE_URL = "http://localhost:11434/v1"
@@ -42,6 +42,16 @@ DEFAULT_TEMPERATURE: float = 1.0
 # "length" with an empty body, i.e. the budget went to reasoning. Output tokens are
 # only billed when used, so a high ceiling costs nothing on short replies.
 DEFAULT_MAX_TOKENS = 16384
+
+# One HTTP request may not hang a whole evening's wave. justhtml took ~120 s on sonnet,
+# so 300 s leaves room; anything slower is recorded as an error and re-run later.
+REQUEST_TIMEOUT_S = 300
+# The OpenAI SDK already retries 408/409/429/5xx and connection errors with a short
+# exponential backoff (0.5 s .. 8 s). A gateway rate limit is usually per minute, so on
+# top of that we wait longer, twice, before giving up on the run.
+SDK_MAX_RETRIES = 2
+RATE_LIMIT_BACKOFF_S: tuple[int, ...] = (30, 60)
+_sleep = time.sleep  # replaced in tests
 
 PROVIDERS = ("gateway", "ollama")
 
@@ -114,7 +124,35 @@ def load_model_config(
 
 def build_client(config: ModelConfig) -> OpenAI:
     """One SDK client works for both providers; only base_url and key differ."""
-    return OpenAI(api_key=config.api_key, base_url=config.base_url)
+    return OpenAI(
+        api_key=config.api_key,
+        base_url=config.base_url,
+        timeout=REQUEST_TIMEOUT_S,
+        max_retries=SDK_MAX_RETRIES,
+    )
+
+
+_TRANSIENT = (RateLimitError, InternalServerError, APIConnectionError)
+
+
+def _create_with_backoff(client: Any, notes: list[str], **kwargs: Any) -> Any:
+    """One completion request, with a slow second line of retries for transient errors.
+
+    The SDK's own fast retries run inside each attempt here. If they are exhausted
+    (the exception reaches us), wait RATE_LIMIT_BACKOFF_S and try again; after the last
+    wait the exception propagates and the run is recorded as an error, to be re-run.
+    """
+    for attempt, wait in enumerate((*RATE_LIMIT_BACKOFF_S, None)):
+        try:
+            return client.chat.completions.create(**kwargs)
+        except _TRANSIENT as exc:
+            if wait is None:
+                raise
+            notes.append(
+                f"{type(exc).__name__} on attempt {attempt + 1}; waiting {wait}s before retry"
+            )
+            _sleep(wait)
+    raise AssertionError("unreachable")
 
 
 # --- budget -------------------------------------------------------------------------
@@ -251,8 +289,8 @@ def call_model(client: Any, config: ModelConfig, system: str, user: str) -> Mode
 
     for _ in range(len(params) + 2):
         try:
-            response = client.chat.completions.create(
-                model=config.model, messages=messages, **params, **extra
+            response = _create_with_backoff(
+                client, notes, model=config.model, messages=messages, **params, **extra
             )
         except BadRequestError as exc:
             offender = _rejected_param(str(exc), params)
