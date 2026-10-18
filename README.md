@@ -71,6 +71,9 @@ that CVE can be merged. The two are not connected yet; the harness is still bein
 - A model endpoint: either `DUKE_API_KEY` in `.env` for the Duke AI Gateway (reachable
   only from the Duke network or VPN), or a local [Ollama](https://ollama.ai) server.
   See `.env.example`.
+- Optional: [Semgrep](https://semgrep.dev) as an isolated tool (`uv tool install semgrep`).
+  It is kept out of this venv because its dependencies conflict with the pinned FastAPI.
+  Bandit comes with `requirements-dev.txt`. Scan results are recorded, never used to judge.
 
 **Run one case through one model**
 

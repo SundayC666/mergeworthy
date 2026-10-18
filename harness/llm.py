@@ -140,17 +140,31 @@ class BudgetExhausted(RuntimeError):
     """Not enough budget left to start another run. Stop, do not count anything."""
 
 
+class BudgetUnavailable(BudgetExhausted):
+    """The budget could not be checked (gateway unreachable, e.g. VPN down).
+
+    Fail closed: an unknown budget is treated like an exhausted one. Subclassing
+    BudgetExhausted means every caller that stops on exhaustion also stops here.
+    """
+
+
 def gateway_budget(config: ModelConfig) -> Budget:
     """Ask LiteLLM's /key/info for this key's spend and cap. Gateway only."""
     if config.provider != "gateway":
         raise ModelConfigError("budget lookup only exists for the gateway")
     root = config.base_url.rsplit("/v1", 1)[0]
-    response = httpx.get(
-        f"{root}/key/info",
-        headers={"Authorization": f"Bearer {config.api_key}"},
-        timeout=15,
-    )
-    response.raise_for_status()
+    try:
+        response = httpx.get(
+            f"{root}/key/info",
+            headers={"Authorization": f"Bearer {config.api_key}"},
+            timeout=15,
+        )
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise BudgetUnavailable(
+            f"cannot check the gateway budget ({type(exc).__name__}: {exc}); "
+            "is the Duke VPN connected? Not starting a run with an unknown budget."
+        ) from exc
     info = response.json().get("info", {})
     max_budget = info.get("max_budget")
     return Budget(

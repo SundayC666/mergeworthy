@@ -229,3 +229,15 @@ def test_ollama_has_no_budget():
 
 def test_reserve_must_be_decided():
     assert llm_mod.BUDGET_RESERVE_USD is not None, "fill in BUDGET_RESERVE_USD (TODO in llm.py)"
+
+
+def test_unreachable_gateway_is_fail_closed(monkeypatch):
+    # VPN down / DNS / timeout: the budget is unknown, so no run may start. This must be
+    # the same stop path as "budget exhausted", not a traceback.
+    def boom(url, headers=None, timeout=None):
+        raise httpx.ConnectTimeout("timed out")
+
+    monkeypatch.setattr(httpx, "get", boom)
+    monkeypatch.setattr(llm_mod, "BUDGET_RESERVE_USD", 0.30)
+    with pytest.raises(BudgetExhausted, match="VPN"):
+        assert_budget(config())

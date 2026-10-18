@@ -38,6 +38,7 @@ from harness.llm import (
     load_model_config,
 )
 from harness.patch import PROMPT_VERSION, apply_reply, build_prompt_v1, load_target
+from harness.scan import scan_target
 from harness.setup_case import REPO_ROOT, Case, load_cases, run_security_tests, setup
 from harness.verify import classify, run_regression_tests
 
@@ -99,6 +100,8 @@ def run_one(case: Case, model: str, provider: str | None, runs_dir: Path = RUNS_
             "lines": [snippet.start_line, snippet.end_line],
         }
         record["prompt_chars"] = len(system) + len(user)
+        # Record-only (ARCHITECTURE §5): scanners never influence the verdict.
+        record["scan_before"] = scan_target(case, target.file, snippet.start_line, snippet.end_line)
 
         call = call_model(build_client(cfg), cfg, system, user)
         (run_dir / "reply.md").write_text(call.text)
@@ -123,6 +126,9 @@ def run_one(case: Case, model: str, provider: str | None, runs_dir: Path = RUNS_
         if not applied.applied:
             verdict = classify(False, None, baseline, None)
         else:
+            record["scan_after"] = scan_target(
+                case, target.file, snippet.start_line, snippet.end_line
+            )
             sec = run_security_tests(case, run_dir / "security_report.json")
             record["security_tests"] = {**asdict(sec), "all_passed": sec.all_passed}
             after = run_regression_tests(case, run_dir / "regression_after.json")
