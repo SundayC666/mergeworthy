@@ -116,15 +116,103 @@ cves.yaml ─► budget check ─► setup ─► baseline tests ─► prompt �
 
 ## 5. Outcome Classification
 
-<!--
-全文最重要的一節。每條規則都要能直接寫成 if/else。
-- 四種結果的定義：patch 套不上／沒修好／修好但弄壞功能／修好且通過。
-- 「修好」用什麼判斷？採用 FAIL_TO_PASS（修補前失敗、修補後通過的安全測試）嗎？
-- 「沒弄壞」用什麼判斷？採用 PASS_TO_PASS 嗎？原有測試本來就失敗的怎麼處理？
-- 判定順序：哪一步失敗就停？
-- 附加檢查：掃描器重掃是否變安靜？這個結果「不」影響分類，只是記錄——為什麼？
-- 模型每次輸出不同：每組跑幾次？結果怎麼彙整？
--->
+**Two criteria, both borrowed.** "Fixed" is decided by FAIL_TO_PASS: every case ships
+a security test that fails on the vulnerable commit; after the patch it must pass.
+"Nothing broke" is decided by PASS_TO_PASS: every test of the project's own suite that
+passed before the patch must still pass after it. Neither criterion is mine. Both come
+from SWE-bench (2023) and are reused by CVE-Bench; this project reuses them too, so that
+its numbers are comparable with prior work. What this project adds is the baseline step
+(below), the four-way split, and what happens around the criteria, not the criteria
+themselves.
+
+**Four outcomes, one order.** Every run ends in exactly one of these:
+
+| Outcome | Security test (was failing) | Existing tests (were passing) |
+|---|---|---|
+| not applied | the diff did not apply; nothing was run | |
+| not fixed | still fails | |
+| fixed but broke | passes | at least one no longer passes |
+| fixed and clean | passes | all still pass |
+
+The rules are evaluated in this order and the first one that matches stops the
+evaluation: *not applied* → *not fixed* → *fixed but broke* → *fixed and clean*. The
+order follows from the evidence: if the diff did not apply there is nothing to test; if
+the security test still fails, regression results do not change the verdict. In code
+this is four `if` statements in `harness/verify.py` (`classify`), and each rule below
+has a unit test.
+
+**Baseline before the patch.** The project's own test suite is run twice in every run:
+once right after the repository is reset to the vulnerable commit, once after the
+patch is applied. Only tests that passed in the first run can count as broken in the
+second. Tests that were already failing, erroring or skipped before the patch are
+recorded as *pre-existing failures* and excluded from the judgment, so a project's old
+red tests are never charged to the model. The baseline is taken on every run rather
+than stored once per case: it costs one to three seconds on the current cases, and
+flaky tests (network, timing, ordering) are handled most fairly by comparing before and
+after within the same run. CVE-Bench skips this step because it validated that every
+task's suite is green on the fixed commit; this harness keeps it because Phase 3 will
+run on repositories nobody has validated, and the rule should not change halfway.
+
+**Detail rules.** The first four are single tests in `tests/test_verify.py`; the flag
+in the fifth is tested in `tests/test_patch.py`:
+
+- A test that passed at baseline and is *missing* afterwards (deleted or renamed)
+  counts as broken. This is the "fix the bug by deleting the test" failure mode from the
+  Google report, and the reason the security test itself is re-copied from a trusted
+  location before it runs (§4, step 8).
+- A test that passed at baseline and is *skipped* afterwards counts as broken: a
+  skipped test no longer proves anything.
+- A test that failed at baseline and passes afterwards is recorded as *newly passing*
+  and does not affect the verdict.
+- A patch that applied but whose security run is missing is *not fixed*, never
+  *clean*: absence of evidence is not evidence.
+- A patch that touches test files is flagged (`touches_tests`) and classified normally.
+  It cannot change the security verdict because the trusted test file is copied in
+  before the run; the flag is kept as a signal for the gate (§6).
+
+**What "the project's own tests" means.** Whatever `pytest` runs by default in that
+repository: the project's own `pytest.ini` or `pyproject.toml` settings are inherited
+(yt-dlp, for example, excludes network download tests by default), and only the
+harness's injected security test file is removed from the run. The whole default
+suite is run, never a subset chosen around the patched file; one clear target, with no
+per-case exceptions, is what keeps results comparable. A suite that exceeds its time
+limit (`regression_timeout_s` in `benchmarks/cves.yaml`, default 600 s) is an error,
+not a failure; the number may differ per case, the rule does not. The known limit of
+PASS_TO_PASS is stated plainly: it only catches breakage that the existing tests
+exercise. Behaviour nobody tested (performance, concurrency, edge cases) is a blind
+spot of this method, and of every method built on it.
+
+**What is not an outcome.** A failure of the pipeline is recorded as `outcome: error`
+and never enters the four-way count: the setup script crashes, the model returns an
+empty reply, the budget is insufficient, a test run produces no report, the baseline
+suite cannot run, a step times out. The run folder is kept, the cause is fixed, and the
+run is repeated. A diff that git refuses is *not* an error but a result (*not applied*),
+because a real patch bot would be rejected the same way; the harness records why (no
+diff in the reply, or git refused it and whether ignoring whitespace would have
+accepted it) so that formatting failures can later be separated from wrong fixes. The
+question that separates the two categories: in this failure, did the model actually get
+a chance? One error subtype is already known to be a model property rather than a
+harness fault: claude-sonnet-5 on the justhtml case sometimes spends the entire
+16,384-token output budget without producing a patch (`finish_reason: length`). The
+ceiling is not raised for it; the case is logged in §13. One run that sits on the
+boundary between *not fixed* and *fixed but broke* (a patch that blocked the traversal
+but mangled the file name) is worked through in §12; the ordering rule decides it.
+
+**Scanner results are recorded, never used to judge.** Bandit and Semgrep scan the
+target file before and after the patch, and two booleans are kept per tool: whether a
+finding with the case's CWE exists anywhere in the file, and whether it falls inside the
+function that the advisory points at. A scanner going quiet is not evidence of a fix;
+deleting the failing test also makes scanners quiet. The record exists so the report
+can show how often the scanner saw the vulnerability at all, and how often it went quiet
+after a patch that the tests say did not fix anything.
+
+**Non-determinism.** Each case × model pair is run three times with the model's
+temperature set explicitly to 1.0 (§7) and the gateway's response cache disabled.
+Results are reported as counts per outcome over those runs, not as a single label per
+pair; on the first night of Wave 1 the same model gave three different results on the
+same case (fixed, not fixed, error), which is exactly what the repeats are for. How the
+three runs feed the merge gate (majority, worst case, or rate thresholds) is decided in
+§6 once Phase 1 data exists.
 
 ## 6. Merge Gate Policy
 
