@@ -97,8 +97,8 @@ python -m pytest -q
 ```
 
 Unit tests only: fake scripts, a fake model client, no network, no budget. CI runs
-these plus ruff and Bandit on every push; it never executes a CVE-Bench case or calls a
-model.
+these plus ruff, Bandit and pip-audit on every push; it never executes a CVE-Bench case
+or calls a model.
 
 ---
 
@@ -169,7 +169,7 @@ with CISA KEV cross-referencing.
 | Category | Technologies |
 |----------|-------------|
 | Backend | Python 3.12, FastAPI, Pydantic |
-| LLM (Optional) | LangChain + Ollama (local inference) |
+| LLM (Optional) | Ollama via its OpenAI-compatible API (local inference) |
 | Frontend | HTML5, CSS3, Vanilla JavaScript |
 
 ### Data Sources
@@ -231,7 +231,7 @@ The application will automatically detect Ollama and enable:
 - **Rate Limiting**: slowapi on all endpoints (10-60 req/min per endpoint); hits are logged as security events with the client address
 - **Input Sanitization**: query pattern blocklist (logged when triggered), html.escape, length limits
 - **Fail closed**: when NVD cannot be queried the API returns 503 "result unknown" instead of an empty, reassuring list
-- **Dependencies**: All pinned to exact versions in requirements.txt
+- **Dependencies**: All pinned to exact versions and audited by pip-audit in CI; any known vulnerability fails the build
 
 ### API Endpoints
 

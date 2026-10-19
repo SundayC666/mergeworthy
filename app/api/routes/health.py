@@ -4,7 +4,7 @@ Provides system status information
 """
 
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
@@ -42,5 +42,5 @@ async def health_check(request: Request):
         status="healthy",
         version="2.0.0",
         uptime_seconds=round(uptime, 2),
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
     )

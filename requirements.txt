@@ -1,25 +1,24 @@
-# SecOps Remediation Agent v2.0
-# Full dependencies - No API keys required, local LLM only
-# All versions pinned for security (OWASP A06)
+# mergeworthy - runtime dependencies for the web app and the harness
+# All versions pinned for security (OWASP A06); audited with pip-audit in CI
 
 # ============================================
 # Web Framework
 # ============================================
-fastapi==0.115.0
-uvicorn[standard]==0.30.0
-python-multipart==0.0.12
+fastapi==0.149.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
 
 # ============================================
 # Security Middleware
 # ============================================
-slowapi==0.1.9
+slowapi==0.1.10
 
 # ============================================
 # Configuration
 # ============================================
-pydantic==2.10.0
-pydantic-settings==2.7.0
-python-dotenv==1.0.1
+pydantic==2.14.1
+pydantic-settings==2.16.0
+python-dotenv==1.2.4
 
 # ============================================
 # HTTP Client (for CVE fetching)
@@ -27,14 +26,7 @@ python-dotenv==1.0.1
 httpx==0.28.1
 
 # ============================================
-# LangChain + Ollama (Local LLM)
-# ============================================
-langchain==0.3.14
-langchain-ollama==0.2.2
-langchain-core==0.3.29
-
-# ============================================
-# Harness (benchmarks/cves.yaml, harness/)
+# Harness (benchmarks/cves.yaml, harness/) and the web app's optional Ollama call
 # ============================================
 PyYAML==6.0.3
 openai==3.30.0

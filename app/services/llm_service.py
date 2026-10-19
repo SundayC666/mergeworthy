@@ -1,19 +1,36 @@
 """
-LLM Service - Ollama Integration with LangChain
-Provides AI-powered analysis for CVE impact
+LLM Service - optional local Ollama analysis for CVE impact.
 
-Uses llama3.2:3b for fast, stable responses
+Talks to Ollama through its OpenAI-compatible endpoint with the same `openai` SDK the
+harness uses (harness/llm.py). LangChain was removed on 2026-10-19: it was used only for
+a prompt template and a one-shot call, and its dependency tree (langchain-core, langsmith,
+langchain-text-splitters) carried a dozen unfixed CVEs (pip-audit).
 """
+
+from __future__ import annotations
 
 import asyncio
 import logging
 from typing import Any
 
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import PromptTemplate
-from langchain_ollama import OllamaLLM
+from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
+
+PROMPT = """Analyze this CVE for the user's system. Be concise.
+
+CVE: {cve_id}
+Severity: {severity}
+Description: {description}
+Affected Versions: {affected_versions}
+User's System: {user_system}
+
+Respond in this exact format:
+AFFECTS_USER: [YES/NO/UNCERTAIN]
+CONFIDENCE: [HIGH/MEDIUM/LOW]
+EXPLANATION: [One sentence explaining why]
+ACTION: [One specific action to take]
+PRIORITY: [CRITICAL/HIGH/MEDIUM/LOW]"""
 
 
 class LLMService:
@@ -23,39 +40,33 @@ class LLMService:
     Features:
     - Fast response (< 2 seconds with llama3.2:3b)
     - Graceful fallback if Ollama unavailable
-    - Caching for repeated queries
     """
 
     # Default model - fast and stable
     DEFAULT_MODEL = "llama3.2:3b"
 
-    # Ollama server URL
+    # Ollama server URL (OpenAI-compatible API lives under /v1)
     OLLAMA_BASE_URL = "http://localhost:11434"
 
     # Timeout settings
     REQUEST_TIMEOUT = 30  # seconds
 
-    def __init__(self, model: str = None):
+    def __init__(self, model: str | None = None):
         self.model = model or self.DEFAULT_MODEL
-        self._llm: OllamaLLM | None = None
+        self._client: AsyncOpenAI | None = None
         self._available: bool | None = None
 
     @property
-    def llm(self) -> OllamaLLM | None:
-        """Lazy initialization of LLM"""
-        if self._llm is None:
-            try:
-                self._llm = OllamaLLM(
-                    model=self.model,
-                    base_url=self.OLLAMA_BASE_URL,
-                    temperature=0.1,  # Low temperature for consistent outputs
-                    num_predict=512,  # Limit response length for speed
-                )
-                logger.info(f"LLM initialized with model: {self.model}")
-            except Exception as e:
-                logger.error(f"Failed to initialize LLM: {e}")
-                self._llm = None
-        return self._llm
+    def client(self) -> AsyncOpenAI:
+        """Lazy client. Ollama ignores the key but the SDK requires one."""
+        if self._client is None:
+            self._client = AsyncOpenAI(
+                base_url=f"{self.OLLAMA_BASE_URL}/v1",
+                api_key="ollama",
+                timeout=self.REQUEST_TIMEOUT,
+                max_retries=0,
+            )
+        return self._client
 
     async def is_available(self) -> bool:
         """Check if Ollama is running and model is available"""
@@ -87,7 +98,7 @@ class LLMService:
         description: str,
         severity: str,
         user_system: str,
-        affected_versions: list[str] = None,
+        affected_versions: list[str] | None = None,
     ) -> dict[str, Any]:
         """
         Analyze CVE impact on user's specific system.
@@ -104,39 +115,27 @@ class LLMService:
         if not await self.is_available():
             return self._fallback_cve_analysis(severity, affected_versions, user_system)
 
-        prompt = PromptTemplate.from_template("""Analyze this CVE for the user's system. Be concise.
-
-CVE: {cve_id}
-Severity: {severity}
-Description: {description}
-Affected Versions: {affected_versions}
-User's System: {user_system}
-
-Respond in this exact format:
-AFFECTS_USER: [YES/NO/UNCERTAIN]
-CONFIDENCE: [HIGH/MEDIUM/LOW]
-EXPLANATION: [One sentence explaining why]
-ACTION: [One specific action to take]
-PRIORITY: [CRITICAL/HIGH/MEDIUM/LOW]""")
-
+        prompt = PROMPT.format(
+            cve_id=cve_id,
+            severity=severity,
+            description=description[:500],
+            affected_versions=", ".join(affected_versions[:5])
+            if affected_versions
+            else "Not specified",
+            user_system=user_system,
+        )
         try:
-            chain = prompt | self.llm | StrOutputParser()
-            result = await asyncio.wait_for(
-                asyncio.to_thread(
-                    chain.invoke,
-                    {
-                        "cve_id": cve_id,
-                        "severity": severity,
-                        "description": description[:500],
-                        "affected_versions": ", ".join(affected_versions[:5])
-                        if affected_versions
-                        else "Not specified",
-                        "user_system": user_system,
-                    },
+            response = await asyncio.wait_for(
+                self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1,  # Low temperature for consistent outputs
+                    max_tokens=512,  # Limit response length for speed
                 ),
                 timeout=self.REQUEST_TIMEOUT,
             )
-            return self._parse_cve_response(result, severity)
+            text = response.choices[0].message.content or ""
+            return self._parse_cve_response(text, severity)
         except TimeoutError:
             logger.warning(f"LLM timeout for CVE {cve_id}")
             return self._fallback_cve_analysis(severity, affected_versions, user_system)
@@ -175,7 +174,7 @@ PRIORITY: [CRITICAL/HIGH/MEDIUM/LOW]""")
         return result
 
     def _fallback_cve_analysis(
-        self, severity: str, affected_versions: list[str], user_system: str
+        self, severity: str, affected_versions: list[str] | None, user_system: str
     ) -> dict[str, Any]:
         """Fallback when LLM is unavailable"""
         # Simple rule-based fallback

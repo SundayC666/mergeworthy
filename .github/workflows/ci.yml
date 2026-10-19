@@ -51,3 +51,15 @@ jobs:
       - run: pip install -r requirements-dev.txt
       # Medium severity and above fails the build. Low findings are reported, not gating.
       - run: bandit -r app/ harness/ main.py -ll
+
+  dependencies:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit
+      # Any known vulnerability in a pinned dependency fails the build (OWASP A06).
+      - run: pip-audit -r requirements.txt -r requirements-dev.txt --progress-spinner off

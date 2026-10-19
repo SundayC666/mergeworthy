@@ -4,11 +4,18 @@ Loads environment variables from .env file
 """
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings"""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore",  # Ignore extra fields in .env file
+    )
 
     # Server configuration
     # Listen on loopback by default: this is a single-user local tool. Set HOST=0.0.0.0
@@ -36,12 +43,6 @@ class Settings(BaseSettings):
         # The literal is only compared against, never bound to (B104 is a false positive here).
         host = "localhost" if self.HOST == "0.0.0.0" else self.HOST  # nosec B104
         return f"http://{host}:{self.PORT}"
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
-        extra = "ignore"  # Ignore extra fields in .env file
 
 
 # Global settings instance

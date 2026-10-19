@@ -6,6 +6,7 @@ Entry point: python main.py
 """
 
 import os
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -23,6 +24,18 @@ from app.core.input_sanitizer import log_security_event
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Startup banner. (FastAPI's on_event hooks are deprecated in favour of this.)"""
+    print("=" * 70)
+    print("mergeworthy (web app)")
+    print(f"System ready! Server running on {settings.SERVER_URL}")
+    print(f"API Docs: {settings.SERVER_URL}/api/docs")
+    print("=" * 70)
+    yield
+
+
 # Create FastAPI application
 app = FastAPI(
     title="mergeworthy",
@@ -30,6 +43,7 @@ app = FastAPI(
     version="2.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    lifespan=lifespan,
 )
 
 # Add rate limiter to app state
@@ -73,19 +87,6 @@ async def add_security_headers(request: Request, call_next):
     if not settings.DEBUG:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize system components on startup"""
-    print("=" * 70)
-    print("mergeworthy (web app)")
-    print("=" * 70)
-
-    print("=" * 70)
-    print(f"System ready! Server running on {settings.SERVER_URL}")
-    print(f"API Docs: {settings.SERVER_URL}/api/docs")
-    print("=" * 70)
 
 
 # Mount static files
