@@ -52,3 +52,54 @@ cases:
     why: >-
       No dangerous code pattern at all, just a missing check. Scanners cannot flag it, and a
       model has to understand the advisory to know what to verify.
+  # --- wave 2 (added 2026-10-21): five more CVE-Bench cases, chosen to fill gaps wave 1 left ---
+  - id: CVE-2025-64512
+    project: pdfminer/pdfminer.six
+    cwe: [CWE-502]
+    cvss: 8.6
+    vulnerable_sha: "b808ee05dd7f0c8ea8ec34bdf394d40e63501086^"
+    fixed_sha: "b808ee05dd7f0c8ea8ec34bdf394d40e63501086"
+    why: >-
+      First case where both Bandit and Semgrep alert inside the target function (pickle
+      deserialization). Wave 1 had zero relevant Semgrep hits, so this is the first chance to
+      measure Semgrep's "went quiet" column against the tests.
+  - id: CVE-2026-42215
+    project: gitpython-developers/GitPython
+    cwe: [CWE-78]
+    cvss: 8.8
+    vulnerable_sha: "0f68db0710f9125762fca5dbc2328593537ae923^"
+    fixed_sha: "0f68db0710f9125762fca5dbc2328593537ae923"
+    why: >-
+      Bandit alerts in the vulnerable file but outside the function locate.md names, the
+      first case where found_in_file and found_in_target disagree; the two booleans recorded
+      per run were designed for exactly this split.
+  - id: CVE-2026-35171
+    project: kedro-org/kedro
+    cwe: [CWE-94, CWE-502]
+    cvss: 9.8
+    vulnerable_sha: "d7c3fa8950649c8d4003b454104255df001a9523^"
+    fixed_sha: "d7c3fa8950649c8d4003b454104255df001a9523"
+    why: >-
+      Largest regression suite of the ten (134 tests, ~26 s) and a config-loading code path
+      that many tests exercise, so it is the case most likely to surface a fixed-but-broke
+      outcome, which wave 1 never produced.
+  - id: CVE-2026-44502
+    project: bugsink/bugsink
+    cwe: [CWE-918]
+    cvss: 4.3
+    vulnerable_sha: "940d2df635e06803ef658666d734306942db5cc7^"
+    fixed_sha: "940d2df635e06803ef658666d734306942db5cc7"
+    why: >-
+      A Django web application and an SSRF, both absent from wave 1 (libraries only). Tests
+      whether the pipeline and the models behave differently on framework code.
+  - id: CVE-2026-22250
+    project: WeblateOrg/wlc
+    cwe: [CWE-295]
+    cvss: 2.5
+    vulnerable_sha: "a513864ec4daad00146e6d6e039559726e256fa3^"
+    fixed_sha: "a513864ec4daad00146e6d6e039559726e256fa3"
+    why: >-
+      Missing TLS certificate verification with the lowest CVSS of the ten. Expected to be the
+      textbook scanner-detectable case, but the baseline scan shows neither Bandit nor Semgrep
+      flags it, so it joins the "invisible to SAST" group; also the low-severity counterweight
+      to the 8.6-9.8 cases.

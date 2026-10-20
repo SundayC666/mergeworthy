@@ -59,17 +59,24 @@ def fake_case(
 # ---- load_cases: reads the real benchmarks/cves.yaml --------------------------------
 
 
-def test_load_cases_reads_the_five_phase1_cases():
+def test_load_cases_reads_the_ten_phase1_cases():
     cases = load_cases(CASES_FILE)
     assert [c.id for c in cases] == [
+        # wave 1 (2026-10-18)
         "CVE-2026-24486",
         "GHSA-r758-8hxw-4845",
         "CVE-2026-26331",
         "CVE-2026-32714",
         "CVE-2026-33175",
+        # wave 2 (2026-10-21)
+        "CVE-2025-64512",
+        "CVE-2026-42215",
+        "CVE-2026-35171",
+        "CVE-2026-44502",
+        "CVE-2026-22250",
     ]
     assert all(c.task_dir.name == c.id for c in cases)
-    assert all(c.why for c in cases)
+    assert all(c.why and "TODO" not in c.why for c in cases)
 
 
 # ---- setup --------------------------------------------------------------------------

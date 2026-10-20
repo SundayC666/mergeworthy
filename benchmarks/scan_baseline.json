@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-18T15:15:14.581587+00:00",
+  "generated_at": "2026-10-20T18:49:57.416254+00:00",
   "semgrep_configs": [
     "p/python",
     "p/security-audit",
@@ -180,6 +180,242 @@
       "lines": [
         13,
         87
+      ],
+      "scans": {
+        "bandit": {
+          "tool": "bandit",
+          "total_findings": 0,
+          "relevant": [],
+          "found_in_file": false,
+          "found_in_target": false,
+          "nearest_distance": null,
+          "error": null
+        },
+        "semgrep": {
+          "tool": "semgrep",
+          "total_findings": 0,
+          "relevant": [],
+          "found_in_file": false,
+          "found_in_target": false,
+          "nearest_distance": null,
+          "error": null
+        }
+      }
+    },
+    {
+      "case": "CVE-2025-64512",
+      "cwe": [
+        "CWE-502"
+      ],
+      "file": "pdfminer/cmapdb.py",
+      "target": "CMapDB._load_data",
+      "lines": [
+        232,
+        249
+      ],
+      "scans": {
+        "bandit": {
+          "tool": "bandit",
+          "total_findings": 7,
+          "relevant": [
+            {
+              "tool": "bandit",
+              "rule": "B403",
+              "cwe": "CWE-502",
+              "line": 16,
+              "severity": "LOW",
+              "message": "Consider possible security implications associated with pickle module."
+            },
+            {
+              "tool": "bandit",
+              "rule": "B301",
+              "cwe": "CWE-502",
+              "line": 246,
+              "severity": "MEDIUM",
+              "message": "Pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue."
+            }
+          ],
+          "found_in_file": true,
+          "found_in_target": true,
+          "nearest_distance": 0,
+          "error": null
+        },
+        "semgrep": {
+          "tool": "semgrep",
+          "total_findings": 1,
+          "relevant": [
+            {
+              "tool": "semgrep",
+              "rule": "avoid-pickle",
+              "cwe": "CWE-502",
+              "line": 246,
+              "severity": "WARNING",
+              "message": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relev"
+            }
+          ],
+          "found_in_file": true,
+          "found_in_target": true,
+          "nearest_distance": 0,
+          "error": null
+        }
+      }
+    },
+    {
+      "case": "CVE-2026-42215",
+      "cwe": [
+        "CWE-78"
+      ],
+      "file": "git/cmd.py",
+      "target": "Git.check_unsafe_options",
+      "lines": [
+        947,
+        962
+      ],
+      "scans": {
+        "bandit": {
+          "tool": "bandit",
+          "total_findings": 8,
+          "relevant": [
+            {
+              "tool": "bandit",
+              "rule": "B404",
+              "cwe": "CWE-78",
+              "line": 17,
+              "severity": "LOW",
+              "message": "Consider possible security implications associated with the subprocess module."
+            },
+            {
+              "tool": "bandit",
+              "rule": "B404",
+              "cwe": "CWE-78",
+              "line": 18,
+              "severity": "LOW",
+              "message": "Consider possible security implications associated with the subprocess module."
+            },
+            {
+              "tool": "bandit",
+              "rule": "B602",
+              "cwe": "CWE-78",
+              "line": 288,
+              "severity": "HIGH",
+              "message": "subprocess call with shell=True identified, security issue."
+            },
+            {
+              "tool": "bandit",
+              "rule": "B604",
+              "cwe": "CWE-78",
+              "line": 1291,
+              "severity": "MEDIUM",
+              "message": "Function call with shell=True parameter identified, possible security issue."
+            },
+            {
+              "tool": "bandit",
+              "rule": "B607",
+              "cwe": "CWE-78",
+              "line": 1315,
+              "severity": "LOW",
+              "message": "Starting a process with a partial executable path"
+            },
+            {
+              "tool": "bandit",
+              "rule": "B603",
+              "cwe": "CWE-78",
+              "line": 1315,
+              "severity": "LOW",
+              "message": "subprocess call - check for execution of untrusted input."
+            }
+          ],
+          "found_in_file": true,
+          "found_in_target": false,
+          "nearest_distance": 329,
+          "error": null
+        },
+        "semgrep": {
+          "tool": "semgrep",
+          "total_findings": 0,
+          "relevant": [],
+          "found_in_file": false,
+          "found_in_target": false,
+          "nearest_distance": null,
+          "error": null
+        }
+      }
+    },
+    {
+      "case": "CVE-2026-35171",
+      "cwe": [
+        "CWE-94",
+        "CWE-502"
+      ],
+      "file": "kedro/framework/project/__init__.py",
+      "target": "_ProjectLogging.configure",
+      "lines": [
+        277,
+        283
+      ],
+      "scans": {
+        "bandit": {
+          "tool": "bandit",
+          "total_findings": 0,
+          "relevant": [],
+          "found_in_file": false,
+          "found_in_target": false,
+          "nearest_distance": null,
+          "error": null
+        },
+        "semgrep": {
+          "tool": "semgrep",
+          "total_findings": 0,
+          "relevant": [],
+          "found_in_file": false,
+          "found_in_target": false,
+          "nearest_distance": null,
+          "error": null
+        }
+      }
+    },
+    {
+      "case": "CVE-2026-44502",
+      "cwe": [
+        "CWE-918"
+      ],
+      "file": "alerts/service_backends/webhook_security.py",
+      "target": "validate_webhook_url",
+      "lines": [
+        44,
+        89
+      ],
+      "scans": {
+        "bandit": {
+          "tool": "bandit",
+          "total_findings": 0,
+          "relevant": [],
+          "found_in_file": false,
+          "found_in_target": false,
+          "nearest_distance": null,
+          "error": null
+        },
+        "semgrep": {
+          "tool": "semgrep",
+          "total_findings": 0,
+          "relevant": [],
+          "found_in_file": false,
+          "found_in_target": false,
+          "nearest_distance": null,
+          "error": null
+        }
+      }
+    },
+    {
+      "case": "CVE-2026-22250",
+      "cwe": [
+        "CWE-295"
+      ],
+      "file": "wlc/__init__.py",
+      "target": "Weblate._should_verify_ssl",
+      "lines": [
+        373,
+        378
       ],
       "scans": {
         "bandit": {
