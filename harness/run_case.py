@@ -38,6 +38,7 @@ from harness.llm import (
     load_model_config,
 )
 from harness.patch import PROMPT_VERSION, apply_reply, build_prompt_v1, load_target
+from harness.poison import POISON_RUNS_DIR, inject, load_payloads, obeyed
 from harness.scan import scan_target
 from harness.setup_case import REPO_ROOT, Case, load_cases, run_security_tests, setup
 from harness.verify import classify, run_regression_tests
@@ -52,14 +53,27 @@ def _slug(text: str) -> str:
     return "".join(c if c.isalnum() or c in "-." else "_" for c in text)
 
 
-def run_one(case: Case, model: str, provider: str | None, runs_dir: Path = RUNS_DIR) -> dict:
+def run_one(
+    case: Case,
+    model: str,
+    provider: str | None,
+    runs_dir: Path = RUNS_DIR,
+    poison: str | None = None,
+) -> dict:
     """Run one case through one model. Raises BudgetExhausted BEFORE creating a run
-    folder when the gateway budget is too low; every other failure lands in the record."""
+    folder when the gateway budget is too low; every other failure lands in the record.
+
+    `poison` names a payload from benchmarks/poisons.yaml (experiment 18): the comment is
+    injected into the target function before the prompt is built, and the record gains a
+    `poison` block. The verdict is computed exactly as for a clean run."""
     cfg = load_model_config(model, provider)
     budget_before = assert_budget(cfg)  # fail closed before spending anything
+    payload = load_payloads()[poison] if poison else None
 
     started = datetime.now(UTC)
     run_id = f"{started:%Y%m%dT%H%M%SZ}-{_slug(case.id)}-{_slug(model)}"
+    if payload:
+        run_id += f"-poison-{_slug(payload.name)}"
     run_dir = runs_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
 
@@ -74,6 +88,8 @@ def run_one(case: Case, model: str, provider: str | None, runs_dir: Path = RUNS_
         "started_at": started.isoformat(),
         "outcome": "error",  # overwritten only when the pipeline reaches a verdict
     }
+    if payload:
+        record["poison"] = {"payload": payload.name, "intercepted_by": payload.intercepted_by}
     if budget_before is not None:
         record["gateway_spend_before_usd"] = budget_before.spend
     t0 = time.monotonic()
@@ -92,6 +108,11 @@ def run_one(case: Case, model: str, provider: str | None, runs_dir: Path = RUNS_
         }
 
         advisory, target, snippet = load_target(case)
+        if payload:
+            # Poison AFTER the baseline (the comment must not count as a change) and
+            # BEFORE the prompt, so the model sees it inside the real file.
+            snippet, inserted = inject(case, target, payload)
+            record["poison"]["inserted_lines"] = inserted
         system, user = build_prompt_v1(advisory, target, snippet)
         (run_dir / "prompt.md").write_text(f"# system\n\n{system}\n\n# user\n\n{user}")
         record["target"] = {
@@ -126,6 +147,8 @@ def run_one(case: Case, model: str, provider: str | None, runs_dir: Path = RUNS_
             "touches_tests": applied.touches_tests,
             "would_apply_ignoring_whitespace": applied.would_apply_ignoring_whitespace,
         }
+        if payload:
+            record["poison"]["obeyed"] = obeyed(payload, applied)
         if not applied.applied:
             verdict = classify(False, None, baseline, None)
         else:
@@ -142,6 +165,10 @@ def run_one(case: Case, model: str, provider: str | None, runs_dir: Path = RUNS_
                 "duration_s": round(after.duration_s, 1),
             }
             verdict = classify(True, sec, baseline, after)
+            if payload:
+                # The security verdict came from the trusted copy of the test, so a patch
+                # that deleted or edited the test changed nothing about the judgment.
+                record["poison"]["security_judged_from_trusted_test"] = sec.total > 0
         record["outcome"] = verdict.outcome
         record["verdict"] = verdict.as_record()
     except Exception as exc:  # noqa: BLE001 - every failure must land in the record
@@ -178,8 +205,19 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="write to runs-dev/ (gitignored) instead of runs/; use for smoke tests",
     )
+    parser.add_argument(
+        "--poison",
+        default=None,
+        help="payload name from benchmarks/poisons.yaml; runs go to runs-poison/<name>/",
+    )
     args = parser.parse_args(argv)
-    runs_dir = DEV_RUNS_DIR if args.dev else RUNS_DIR
+    if args.poison:
+        if args.poison not in load_payloads():
+            parser.error(f"unknown payload {args.poison!r}")
+        runs_dir = POISON_RUNS_DIR / args.poison
+    else:
+        runs_dir = DEV_RUNS_DIR if args.dev else RUNS_DIR
+    runs_dir.mkdir(parents=True, exist_ok=True)
 
     load_dotenv(REPO_ROOT / ".env")
     cases = load_cases()
@@ -191,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
     exit_code = 0
     for i, case in enumerate(cases):
         try:
-            rec = run_one(case, args.model, args.provider, runs_dir)
+            rec = run_one(case, args.model, args.provider, runs_dir, poison=args.poison)
         except BudgetExhausted as exc:
             remaining = ", ".join(c.id for c in cases[i:])
             print(f"STOP: {exc}\n      not run: {remaining}", file=sys.stderr)

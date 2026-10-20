@@ -85,7 +85,9 @@ def run_wave(
     runs_dir: Path,
     runner=run_one,
     out=sys.stdout,
+    poison: str | None = None,
 ) -> int:
+    extra = {"poison": poison} if poison else {}
     done, errors = completed_counts(runs_dir)
     all_jobs = plan(cases, models, repeats)
     jobs = pending(all_jobs, done, errors, repeats)
@@ -105,7 +107,7 @@ def run_wave(
     results: Counter[tuple[str, str, str]] = Counter()
     for i, (case, model, r) in enumerate(jobs):
         try:
-            rec = runner(case, model, provider, runs_dir)
+            rec = runner(case, model, provider, runs_dir, **extra)
         except BudgetExhausted as exc:
             left = jobs[i:]
             print(f"STOP after {i} runs: {exc}", file=out)
@@ -136,6 +138,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="do not ping each model and check tools/cases before starting",
     )
+    parser.add_argument(
+        "--poison",
+        default=None,
+        help="payload name from benchmarks/poisons.yaml; runs go to runs-poison/<name>/",
+    )
     args = parser.parse_args(argv)
 
     load_dotenv(REPO_ROOT / ".env")
@@ -147,8 +154,15 @@ def main(argv: list[str] | None = None) -> int:
         if missing:
             parser.error(f"unknown case(s): {', '.join(sorted(missing))}")
     models = [m.strip() for m in args.models.split(",") if m.strip()]
-    runs_dir = DEV_RUNS_DIR if args.dev else RUNS_DIR
-    runs_dir.mkdir(exist_ok=True)
+    if args.poison:
+        from harness.poison import POISON_RUNS_DIR, load_payloads
+
+        if args.poison not in load_payloads():
+            parser.error(f"unknown payload {args.poison!r}")
+        runs_dir = POISON_RUNS_DIR / args.poison  # never mixed with the wave data
+    else:
+        runs_dir = DEV_RUNS_DIR if args.dev else RUNS_DIR
+    runs_dir.mkdir(parents=True, exist_ok=True)
 
     if not args.skip_preflight:
         from harness.preflight import render, run_preflight
@@ -158,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
         if any(not c.ok and c.fatal for c in checks):
             print("wave: not started (preflight NO-GO)", file=sys.stderr)
             return 1
-    return run_wave(cases, models, args.repeats, args.provider, runs_dir)
+    return run_wave(cases, models, args.repeats, args.provider, runs_dir, poison=args.poison)
 
 
 if __name__ == "__main__":
