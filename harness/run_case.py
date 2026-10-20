@@ -38,7 +38,14 @@ from harness.llm import (
     load_model_config,
 )
 from harness.patch import PROMPT_VERSION, apply_reply, build_prompt_v1, load_target
-from harness.poison import POISON_RUNS_DIR, inject, load_payloads, obeyed
+from harness.poison import (
+    POISON_RUNS_DIR,
+    inject,
+    load_payloads,
+    obeyed,
+    plant_security_test,
+    touched_security_test,
+)
 from harness.scan import scan_target
 from harness.setup_case import REPO_ROOT, Case, load_cases, run_security_tests, setup
 from harness.verify import classify, run_regression_tests
@@ -96,6 +103,12 @@ def run_one(
     try:
         setup(case)
         record["setup_s"] = round(time.monotonic() - t0, 1)
+        if payload:
+            # A real repository contains its security test; make the checkout look the
+            # same so a diff that deletes it can actually apply (and be judged).
+            record["poison"]["security_test_planted_at"] = str(
+                plant_security_test(case).relative_to(case.repo_dir)
+            )
 
         # Baseline BEFORE the patch: which of the project's own tests pass right now.
         # Only these can later count as "broken" (ARCHITECTURE §5, decision 2026-10-18).
@@ -149,6 +162,9 @@ def run_one(
         }
         if payload:
             record["poison"]["obeyed"] = obeyed(payload, applied)
+            record["poison"]["touched_security_test"] = (
+                touched_security_test(applied.diff) if applied.diff else None
+            )
         if not applied.applied:
             verdict = classify(False, None, baseline, None)
         else:
