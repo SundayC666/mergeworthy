@@ -229,3 +229,9 @@ def test_real_context_mismatch_is_not_flagged_as_whitespace(fake_case, tmp_path)
     bad = GOOD_DIFF.replace("-    return 1", "-    return 999")
     r = apply_reply(fake_case, bad, tmp_path / "p.patch")
     assert r.would_apply_ignoring_whitespace is False
+
+
+def test_parse_locate_qualified_method_without_class_line():
+    # GitPython, mako and liquid write "Method: Class.method" with no "Class:" line.
+    text = "  File: git/cmd.py\n  Method: Git.check_unsafe_options\n"
+    assert parse_locate(text) == Target("git/cmd.py", "Git.check_unsafe_options")

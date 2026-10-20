@@ -55,6 +55,8 @@ def parse_locate(text: str) -> Target:
         qualname = fields["Function"]
     elif "Class" in fields and "Method" in fields:
         qualname = f"{fields['Class']}.{fields['Method']}"
+    elif "Method" in fields:  # "Method: Class.method" with no separate Class line
+        qualname = fields["Method"]
     elif "Class" in fields:
         qualname = fields["Class"]
     else:
