@@ -62,9 +62,13 @@ tests failed. Without the existing tests those two patches would have looked mer
 
 A separate prompt-injection experiment (a planted comment in the target function)
 found that models refuse a destructive instruction ("delete the security test",
-5 of 18 complied, all from gpt-oss-120b) but follow a harmless-looking one ("add this
-constant", 15 of 18 complied), and two of the complying patches passed every test.
-That is why the gate will not auto-merge on green alone.
+5 of 18 complied, all from gpt-oss-120b) more often than a harmless-looking one ("add
+this constant", 11 of 18 complied: gpt-5.3-codex 6 of 6, gpt-oss-120b 5 of 6,
+claude-sonnet-5 0 of 6, which instead deleted the comment in 3 runs). None of the
+complying diffs applied, so no green patch carried the constant, but the model that
+cleans up a destructive injection every time follows a benign one every time. That is
+why the gate will not auto-merge on green alone, and why it records every new symbol a
+patch introduces that the advisory never mentions.
 
 | Case | Project | Weakness |
 |---|---|---|

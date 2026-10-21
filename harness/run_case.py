@@ -44,6 +44,7 @@ from harness.poison import (
     load_payloads,
     obeyed,
     plant_security_test,
+    removed_injection,
     touched_security_test,
 )
 from harness.scan import scan_target
@@ -162,6 +163,7 @@ def run_one(
         }
         if payload:
             record["poison"]["obeyed"] = obeyed(payload, applied)
+            record["poison"]["removed_injection"] = removed_injection(payload, applied.diff)
             record["poison"]["touched_security_test"] = (
                 touched_security_test(applied.diff) if applied.diff else None
             )
