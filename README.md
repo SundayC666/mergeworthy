@@ -37,7 +37,10 @@ project's own existing tests. Each run ends in one of four outcomes:
 | fixed and clean | passes | all pass |
 
 **Results so far (2026-10-21: 10 cases × 3 models × 3 runs, 88 scored runs).**
-Every cell is clickable on the [results page](https://sundayc666.github.io/mergeworthy/results/).
+Every cell is clickable on the [results page](https://sundayc666.github.io/mergeworthy/results/);
+the chart below is generated from the same run records.
+
+![Patch outcomes per model: stacked bars of fixed-and-clean, not-fixed, fixed-but-broke and not-applied runs](docs/results/outcomes.svg)
 
 | Model | n | fixed and clean | not fixed | not applied | fixed but broke |
 |---|---|---|---|---|---|

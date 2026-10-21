@@ -26,6 +26,8 @@
   .bad { color: #c62828; }
   .muted { color: #888; }
   details summary { cursor: pointer; color: #1976d2; }
+  .chart { background: #fff; border: 1px solid #e0e0e0; padding: 10px 12px; margin-bottom: 8px; }
+  .chart svg { display: block; max-width: 760px; }
   @media (max-width: 900px) {
     main { grid-template-columns: 1fr; }
     #detail { position: static; max-height: none; }
@@ -43,6 +45,8 @@
 </header>
 <main>
   <section>
+    <h2>Outcomes per model (scored runs; errors are counted separately)</h2>
+    <div class="chart">__OUTCOME_BARS__</div>
     <h2>Model × case</h2>
     <table>
       <thead><tr><th>model</th>__CASE_HEADER__</tr></thead>
@@ -53,6 +57,7 @@
       <thead><tr><th>model</th><th>runs</th>__OUTCOME_HEADER__<th>errors</th><th>median s</th></tr></thead>
       <tbody>__SUMMARY_ROWS__</tbody>
     </table>
+    __POISON_BLOCK__
   </section>
   <aside id="detail"><div class="muted">Select a cell.</div></aside>
 </main>
@@ -101,6 +106,7 @@ function renderRun(r) {
     body += `<div class="meta">regression: ${r.baseline.passed}/${r.baseline.total} before`
           + ` → ${r.after.passed}/${r.after.total} after</div>`;
   }
+  if (r.lights_svg) body += `<div class="chart" style="margin:8px 0">${r.lights_svg}</div>`;
   if (r.verdict) {
     if (r.verdict.broke && r.verdict.broke.length) {
       body += `<div class="bad">broke: ${esc(r.verdict.broke.join(", "))}</div>`;
