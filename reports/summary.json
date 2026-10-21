@@ -1,20 +1,20 @@
 {
   "runs_dir": "/Users/sundaychen/secops-remediation-agent/runs",
-  "records": 56,
+  "records": 101,
   "per_model": {
     "claude-sonnet-5": {
-      "runs": 13,
+      "runs": 28,
       "errors": 6,
       "counts": {
-        "not-applied": 4,
-        "not-fixed": 4,
-        "fixed-but-broke": 0,
-        "fixed-and-clean": 5
+        "not-applied": 7,
+        "not-fixed": 5,
+        "fixed-but-broke": 1,
+        "fixed-and-clean": 15
       },
-      "median_s": 23.1,
-      "mean_prompt_tokens": 3615,
-      "mean_completion_tokens": 1815,
-      "gateway_cost_usd_lower_bound": 0.3429,
+      "median_s": 24.8,
+      "mean_prompt_tokens": 2798,
+      "mean_completion_tokens": 1284,
+      "gateway_cost_usd_lower_bound": 0.4275,
       "folders": [
         "20261018T205850Z-CVE-2026-24486-claude-sonnet-5",
         "20261018T205930Z-GHSA-r758-8hxw-4845-claude-sonnet-5",
@@ -34,22 +34,37 @@
         "20261018T213714Z-GHSA-r758-8hxw-4845-claude-sonnet-5",
         "20261018T214002Z-CVE-2026-24486-claude-sonnet-5",
         "20261018T214130Z-GHSA-r758-8hxw-4845-claude-sonnet-5",
-        "20261018T214421Z-CVE-2026-26331-claude-sonnet-5"
+        "20261018T214421Z-CVE-2026-26331-claude-sonnet-5",
+        "20261021T141151Z-CVE-2025-64512-claude-sonnet-5",
+        "20261021T141259Z-CVE-2026-42215-claude-sonnet-5",
+        "20261021T141716Z-CVE-2026-35171-claude-sonnet-5",
+        "20261021T141813Z-CVE-2026-44502-claude-sonnet-5",
+        "20261021T141923Z-CVE-2026-22250-claude-sonnet-5",
+        "20261021T142015Z-CVE-2025-64512-claude-sonnet-5",
+        "20261021T142117Z-CVE-2026-42215-claude-sonnet-5",
+        "20261021T142517Z-CVE-2026-35171-claude-sonnet-5",
+        "20261021T142558Z-CVE-2026-44502-claude-sonnet-5",
+        "20261021T142704Z-CVE-2026-22250-claude-sonnet-5",
+        "20261021T142751Z-CVE-2025-64512-claude-sonnet-5",
+        "20261021T142844Z-CVE-2026-42215-claude-sonnet-5",
+        "20261021T143252Z-CVE-2026-35171-claude-sonnet-5",
+        "20261021T143335Z-CVE-2026-44502-claude-sonnet-5",
+        "20261021T143440Z-CVE-2026-22250-claude-sonnet-5"
       ]
     },
     "gpt-5.3-codex": {
-      "runs": 15,
+      "runs": 30,
       "errors": 4,
       "counts": {
-        "not-applied": 3,
+        "not-applied": 7,
         "not-fixed": 7,
-        "fixed-but-broke": 0,
-        "fixed-and-clean": 5
+        "fixed-but-broke": 1,
+        "fixed-and-clean": 15
       },
-      "median_s": 11.5,
-      "mean_prompt_tokens": 2184,
-      "mean_completion_tokens": 441,
-      "gateway_cost_usd_lower_bound": 0.1151,
+      "median_s": 16.1,
+      "mean_prompt_tokens": 1724,
+      "mean_completion_tokens": 399,
+      "gateway_cost_usd_lower_bound": 0.181,
       "folders": [
         "20261018T205912Z-CVE-2026-24486-gpt-5.3-codex",
         "20261018T210143Z-GHSA-r758-8hxw-4845-gpt-5.3-codex",
@@ -69,22 +84,37 @@
         "20261018T214111Z-CVE-2026-24486-gpt-5.3-codex",
         "20261018T214347Z-GHSA-r758-8hxw-4845-gpt-5.3-codex",
         "20261019T183416Z-CVE-2026-26331-gpt-5.3-codex",
-        "20261019T183451Z-CVE-2026-33175-gpt-5.3-codex"
+        "20261019T183451Z-CVE-2026-33175-gpt-5.3-codex",
+        "20261021T141220Z-CVE-2025-64512-gpt-5.3-codex",
+        "20261021T141434Z-CVE-2026-42215-gpt-5.3-codex",
+        "20261021T141751Z-CVE-2026-35171-gpt-5.3-codex",
+        "20261021T141842Z-CVE-2026-44502-gpt-5.3-codex",
+        "20261021T141948Z-CVE-2026-22250-gpt-5.3-codex",
+        "20261021T142040Z-CVE-2025-64512-gpt-5.3-codex",
+        "20261021T142250Z-CVE-2026-42215-gpt-5.3-codex",
+        "20261021T142535Z-CVE-2026-35171-gpt-5.3-codex",
+        "20261021T142630Z-CVE-2026-44502-gpt-5.3-codex",
+        "20261021T142725Z-CVE-2026-22250-gpt-5.3-codex",
+        "20261021T142818Z-CVE-2025-64512-gpt-5.3-codex",
+        "20261021T143019Z-CVE-2026-42215-gpt-5.3-codex",
+        "20261021T143310Z-CVE-2026-35171-gpt-5.3-codex",
+        "20261021T143406Z-CVE-2026-44502-gpt-5.3-codex",
+        "20261021T143458Z-CVE-2026-22250-gpt-5.3-codex"
       ]
     },
     "gpt-oss-120b": {
-      "runs": 15,
+      "runs": 30,
       "errors": 3,
       "counts": {
-        "not-applied": 15,
+        "not-applied": 30,
         "not-fixed": 0,
         "fixed-but-broke": 0,
         "fixed-and-clean": 0
       },
-      "median_s": 9.6,
-      "mean_prompt_tokens": 2248,
-      "mean_completion_tokens": 1215,
-      "gateway_cost_usd_lower_bound": 0.0373,
+      "median_s": 11.0,
+      "mean_prompt_tokens": 1788,
+      "mean_completion_tokens": 1161,
+      "gateway_cost_usd_lower_bound": 0.0865,
       "folders": [
         "20261018T205923Z-CVE-2026-24486-gpt-oss-120b",
         "20261018T210207Z-GHSA-r758-8hxw-4845-gpt-oss-120b",
@@ -103,7 +133,22 @@
         "20261018T211125Z-CVE-2026-33175-gpt-oss-120b",
         "20261018T214123Z-CVE-2026-24486-gpt-oss-120b",
         "20261018T214408Z-GHSA-r758-8hxw-4845-gpt-oss-120b",
-        "20261019T183503Z-CVE-2026-33175-gpt-oss-120b"
+        "20261019T183503Z-CVE-2026-33175-gpt-oss-120b",
+        "20261021T141245Z-CVE-2025-64512-gpt-oss-120b",
+        "20261021T141607Z-CVE-2026-42215-gpt-oss-120b",
+        "20261021T141803Z-CVE-2026-35171-gpt-oss-120b",
+        "20261021T141910Z-CVE-2026-44502-gpt-oss-120b",
+        "20261021T142005Z-CVE-2026-22250-gpt-oss-120b",
+        "20261021T142105Z-CVE-2025-64512-gpt-oss-120b",
+        "20261021T142423Z-CVE-2026-42215-gpt-oss-120b",
+        "20261021T142549Z-CVE-2026-35171-gpt-oss-120b",
+        "20261021T142652Z-CVE-2026-44502-gpt-oss-120b",
+        "20261021T142742Z-CVE-2026-22250-gpt-oss-120b",
+        "20261021T142832Z-CVE-2025-64512-gpt-oss-120b",
+        "20261021T143157Z-CVE-2026-42215-gpt-oss-120b",
+        "20261021T143325Z-CVE-2026-35171-gpt-oss-120b",
+        "20261021T143426Z-CVE-2026-44502-gpt-oss-120b",
+        "20261021T143513Z-CVE-2026-22250-gpt-oss-120b"
       ]
     }
   },
@@ -127,6 +172,23 @@
       },
       "CVE-2026-33175": {
         "not-applied": 3
+      },
+      "CVE-2025-64512": {
+        "fixed-but-broke": 1,
+        "fixed-and-clean": 2
+      },
+      "CVE-2026-42215": {
+        "fixed-and-clean": 3
+      },
+      "CVE-2026-35171": {
+        "not-applied": 3
+      },
+      "CVE-2026-44502": {
+        "fixed-and-clean": 3
+      },
+      "CVE-2026-22250": {
+        "fixed-and-clean": 2,
+        "not-fixed": 1
       }
     },
     "gpt-5.3-codex": {
@@ -149,6 +211,23 @@
       "CVE-2026-33175": {
         "not-applied": 3,
         "error": 1
+      },
+      "CVE-2025-64512": {
+        "fixed-and-clean": 1,
+        "fixed-but-broke": 1,
+        "not-applied": 1
+      },
+      "CVE-2026-42215": {
+        "fixed-and-clean": 3
+      },
+      "CVE-2026-35171": {
+        "not-applied": 3
+      },
+      "CVE-2026-44502": {
+        "fixed-and-clean": 3
+      },
+      "CVE-2026-22250": {
+        "fixed-and-clean": 3
       }
     },
     "gpt-oss-120b": {
@@ -169,27 +248,44 @@
       "CVE-2026-33175": {
         "not-applied": 3,
         "error": 1
+      },
+      "CVE-2025-64512": {
+        "not-applied": 3
+      },
+      "CVE-2026-42215": {
+        "not-applied": 3
+      },
+      "CVE-2026-35171": {
+        "not-applied": 3
+      },
+      "CVE-2026-44502": {
+        "not-applied": 3
+      },
+      "CVE-2026-22250": {
+        "not-applied": 3
       }
     }
   },
   "apply_failures": {
     "gpt-oss-120b": {
-      "git-apply-failed": 15
+      "git-apply-failed": 30
     },
     "claude-sonnet-5": {
-      "git-apply-failed": 4,
+      "git-apply-failed": 7,
       "(of which whitespace-only)": 1
     },
     "gpt-5.3-codex": {
-      "git-apply-failed": 3
+      "git-apply-failed": 7
     }
   },
   "scanner_vs_verdict": {
-    "scanner blind before patch | not-fixed": 5,
-    "scanner blind before patch | not-applied": 16,
+    "scanner blind before patch | not-fixed": 6,
+    "scanner blind before patch | not-applied": 31,
     "saw it; still alerting | not-fixed": 6,
-    "saw it; patch not applied | not-applied": 6,
+    "saw it; patch not applied | not-applied": 13,
     "saw it; went quiet | fixed-and-clean": 6,
-    "scanner blind before patch | fixed-and-clean": 4
+    "scanner blind before patch | fixed-and-clean": 15,
+    "saw it; still alerting | fixed-but-broke": 2,
+    "saw it; still alerting | fixed-and-clean": 9
   }
 }

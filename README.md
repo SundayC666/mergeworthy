@@ -36,13 +36,35 @@ project's own existing tests. Each run ends in one of four outcomes:
 | fixed but broke something | passes | some fail |
 | fixed and clean | passes | all pass |
 
-**Status (2026-10-17, preliminary).** The pipeline runs end to end. claude-sonnet-5
-has run once on each of the first five cases: 2 passed the security test
-(python-multipart, scitokens), 1 applied but did not fix (justhtml), 1 applied but
-crashed the code (yt-dlp), 1 did not apply (oauthenticator). gpt-5.3-codex and
-gpt-oss-120b have each run once, on python-multipart only. The regression half
-(existing tests) is not wired in yet, so "passed" does not yet mean "fixed and clean".
-These are single runs, not statistics; no conclusion is drawn from them.
+**Results so far (2026-10-21: 10 cases × 3 models × 3 runs, 88 scored runs).**
+Every cell is clickable on the [results page](https://sundayc666.github.io/mergeworthy/results/).
+
+| Model | n | fixed and clean | not fixed | not applied | fixed but broke |
+|---|---|---|---|---|---|
+| claude-sonnet-5 | 28 | 15 (54%) | 5 | 7 | 1 |
+| gpt-5.3-codex | 30 | 15 (50%) | 7 | 7 | 1 |
+| gpt-oss-120b | 30 | 0 | 0 | 30 | 0 |
+
+Runs that failed for infrastructure reasons (empty reply, gateway budget) are recorded
+as errors and never counted; 13 of 101 recorded runs ended that way, most of them in
+one gateway budget incident, and one case × model pair (justhtml × claude-sonnet-5)
+was abandoned after repeated empty replies.
+
+Three things the numbers show. Case difficulty outweighs model choice: three cases
+(scitokens, GitPython, bugsink) were fixed cleanly in every attempt by both capable
+models, while two others (oauthenticator, kedro) were never even applied by any model. gpt-oss-120b never produced a diff that `git apply` accepts
+(hunk headers without line numbers), so for it the question is format, not fixing.
+And the two "fixed but broke" runs are the reason the regression half exists: on
+pdfminer.six, one patch from each capable model used `re.match()` without importing
+`re`. The security test passed (the code crashed before reaching the vulnerable
+load), both Bandit and Semgrep went quiet, and 26 of the project's 227 existing
+tests failed. Without the existing tests those two patches would have looked mergeable.
+
+A separate prompt-injection experiment (a planted comment in the target function)
+found that models refuse a destructive instruction ("delete the security test",
+5 of 18 complied, all from gpt-oss-120b) but follow a harmless-looking one ("add this
+constant", 15 of 18 complied), and two of the complying patches passed every test.
+That is why the gate will not auto-merge on green alone.
 
 | Case | Project | Weakness |
 |---|---|---|
@@ -51,6 +73,11 @@ These are single runs, not statistics; no conclusion is drawn from them.
 | CVE-2026-26331 | yt-dlp | OS command injection (CWE-78) |
 | CVE-2026-32714 | scitokens | SQL injection (CWE-89) |
 | CVE-2026-33175 | jupyterhub/oauthenticator | missing authorization check (CWE-287) |
+| CVE-2025-64512 | pdfminer.six | unsafe deserialization (CWE-502) |
+| CVE-2026-42215 | GitPython | OS command injection (CWE-78) |
+| CVE-2026-35171 | kedro | code injection / deserialization (CWE-94, CWE-502) |
+| CVE-2026-44502 | bugsink | server-side request forgery (CWE-918) |
+| CVE-2026-22250 | wlc | improper certificate validation (CWE-295) |
 
 Design, decisions and open questions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
