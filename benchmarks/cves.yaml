@@ -80,9 +80,10 @@ cases:
     vulnerable_sha: "d7c3fa8950649c8d4003b454104255df001a9523^"
     fixed_sha: "d7c3fa8950649c8d4003b454104255df001a9523"
     why: >-
-      Largest regression suite of the ten (134 tests, ~26 s) and a config-loading code path
-      that many tests exercise, so it is the case most likely to surface a fixed-but-broke
-      outcome, which wave 1 never produced.
+      A config-loading code path that many tests exercise, so it was picked as the case most
+      likely to surface a fixed-but-broke outcome, which wave 1 never produced. Picked on an
+      estimate of 134 tests; the regression suite the harness actually runs has 20 (every
+      run's regression_baseline). The largest suite of the ten is pdfminer.six (227).
   - id: CVE-2026-44502
     project: bugsink/bugsink
     cwe: [CWE-918]
