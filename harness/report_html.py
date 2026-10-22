@@ -1,6 +1,6 @@
 """Render runs/*/record.json into one self-contained HTML page.
 
-    python -m harness.report_html                      # runs/ -> reports/index.html
+    python -m harness.report_html                      # runs/ -> docs/results/index.html
     python -m harness.report_html --runs-dir runs-dev  # exploratory runs
 
 The page is static: no server, no key, no input field, so it can be published on
@@ -29,7 +29,7 @@ from harness.charts import (
     poison_bars_svg,
     three_lights_svg,
 )
-from harness.report import REPORTS_DIR, load_records, per_model
+from harness.report import load_records, per_model
 from harness.setup_case import REPO_ROOT
 from harness.verify import FIXED_BUT_BROKE, OUTCOMES
 
@@ -216,7 +216,8 @@ def build_page(records: list[dict], runs_dir: Path, poison: list[dict] | None = 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--runs-dir", type=Path, default=REPO_ROOT / "runs")
-    parser.add_argument("--out", type=Path, default=REPORTS_DIR / "index.html")
+    # GitHub Pages publishes /docs, so the page is written there directly: one copy.
+    parser.add_argument("--out", type=Path, default=REPO_ROOT / "docs" / "results" / "index.html")
     parser.add_argument(
         "--poison-dir",
         type=Path,

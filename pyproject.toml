@@ -2,9 +2,8 @@
 # Lint configuration only; packaging still uses requirements*.txt.
 target-version = "py312"
 line-length = 100
-# tests/comprehensive_test.py is a legacy manual smoke script (not collected by pytest);
-# it is excluded until the web-app test suite replaces it, then it gets deleted.
-extend-exclude = ["venv", "runs*", "tests/comprehensive_test.py"]
+# runs*/ hold copies of other projects' code (prompts, diffs); CI lints only our code.
+extend-exclude = ["venv", "runs*"]
 
 [tool.ruff.lint]
 # An explicit, small rule set so that "CI is green" means something specific:
