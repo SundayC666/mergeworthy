@@ -357,3 +357,13 @@ def test_gateway_headers_are_recorded():
 def test_missing_headers_are_none_not_errors():
     r = call_model(FakeClient([reply("ok")]), config(), "s", "u")
     assert r.cost_usd is None and r.gateway_spend_usd is None and r.rate_remaining_tokens is None
+
+
+def test_call_model_records_the_model_id_the_endpoint_says_it_served():
+    # Behind a gateway alias ("claude-sonnet-5") the response's model field is the only
+    # trace of which version answered; absent (Ollama, old fakes) it is None, not a crash.
+    served = reply("diff --git a b")
+    served.model = "claude-sonnet-5-20260901"
+    r = call_model(FakeClient([served]), config(), "s", "u")
+    assert r.served_model == "claude-sonnet-5-20260901"
+    assert call_model(FakeClient([reply("x")]), config(), "s", "u").served_model is None

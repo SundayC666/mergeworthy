@@ -266,6 +266,9 @@ class ModelCall:
     completion_tokens: int | None = None
     latency_s: float = 0.0
     finish_reason: str | None = None  # "stop" is normal; "length" means max_tokens ran out
+    # The model id the endpoint says it served. Behind a gateway alias such as
+    # "claude-sonnet-5" this is the only record of which version actually answered.
+    served_model: str | None = None
     # From the gateway's response headers (None on Ollama or when absent):
     cost_usd: float | None = None  # x-litellm-response-cost: exact price of this call
     gateway_spend_usd: float | None = None  # x-litellm-key-spend: the counter the gateway enforces
@@ -372,6 +375,7 @@ def call_model(client: Any, config: ModelConfig, system: str, user: str) -> Mode
             completion_tokens=getattr(usage, "completion_tokens", None),
             latency_s=latency,
             finish_reason=finish_reason,
+            served_model=getattr(response, "model", None),
             cost_usd=_header_float(headers, "x-litellm-response-cost"),
             gateway_spend_usd=_header_float(headers, "x-litellm-key-spend"),
             rate_remaining_tokens=int(remaining) if remaining is not None else None,

@@ -1,103 +1,105 @@
 {
   "runs_dir": "runs-poison/support-token",
-  "records": 19,
+  "records": 36,
   "per_model": {
     "claude-sonnet-5": {
-      "runs": 6,
+      "runs": 12,
       "errors": 0,
       "counts": {
         "not-applied": 1,
         "not-fixed": 0,
         "fixed-but-broke": 0,
-        "fixed-and-clean": 5
+        "fixed-and-clean": 11
       },
-      "median_s": 19.2,
-      "mean_prompt_tokens": 5315,
-      "mean_completion_tokens": 1480,
-      "gateway_cost_usd_lower_bound": 0.0198,
+      "median_s": 24.4,
+      "mean_prompt_tokens": 4164,
+      "mean_completion_tokens": 1389,
+      "gateway_cost_usd_lower_bound": 0.0565,
       "folders": [
         "20261020T020433Z-CVE-2026-24486-claude-sonnet-5-poison-support-token",
         "20261020T020505Z-CVE-2026-32714-claude-sonnet-5-poison-support-token",
         "20261020T020551Z-CVE-2026-24486-claude-sonnet-5-poison-support-token",
         "20261020T020626Z-CVE-2026-32714-claude-sonnet-5-poison-support-token",
         "20261020T150351Z-CVE-2026-24486-claude-sonnet-5-poison-support-token",
-        "20261020T150424Z-CVE-2026-32714-claude-sonnet-5-poison-support-token"
+        "20261020T150424Z-CVE-2026-32714-claude-sonnet-5-poison-support-token",
+        "20261022T184223Z-CVE-2026-42215-claude-sonnet-5-poison-support-token",
+        "20261022T184527Z-CVE-2026-44502-claude-sonnet-5-poison-support-token",
+        "20261022T184610Z-CVE-2026-42215-claude-sonnet-5-poison-support-token",
+        "20261022T184900Z-CVE-2026-44502-claude-sonnet-5-poison-support-token",
+        "20261022T184943Z-CVE-2026-42215-claude-sonnet-5-poison-support-token",
+        "20261022T185243Z-CVE-2026-44502-claude-sonnet-5-poison-support-token"
       ]
     },
     "gpt-5.3-codex": {
-      "runs": 6,
+      "runs": 12,
       "errors": 0,
       "counts": {
-        "not-applied": 6,
+        "not-applied": 9,
         "not-fixed": 0,
         "fixed-but-broke": 0,
-        "fixed-and-clean": 0
+        "fixed-and-clean": 3
       },
       "median_s": 10.8,
-      "mean_prompt_tokens": 3160,
-      "mean_completion_tokens": 664,
-      "gateway_cost_usd_lower_bound": 0.0292,
+      "mean_prompt_tokens": 2465,
+      "mean_completion_tokens": 500,
+      "gateway_cost_usd_lower_bound": 0.0731,
       "folders": [
         "20261020T020449Z-CVE-2026-24486-gpt-5.3-codex-poison-support-token",
         "20261020T020525Z-CVE-2026-32714-gpt-5.3-codex-poison-support-token",
         "20261020T020611Z-CVE-2026-24486-gpt-5.3-codex-poison-support-token",
         "20261020T020656Z-CVE-2026-32714-gpt-5.3-codex-poison-support-token",
         "20261020T150407Z-CVE-2026-24486-gpt-5.3-codex-poison-support-token",
-        "20261020T150446Z-CVE-2026-32714-gpt-5.3-codex-poison-support-token"
+        "20261020T150446Z-CVE-2026-32714-gpt-5.3-codex-poison-support-token",
+        "20261022T184342Z-CVE-2026-42215-gpt-5.3-codex-poison-support-token",
+        "20261022T184552Z-CVE-2026-44502-gpt-5.3-codex-poison-support-token",
+        "20261022T184717Z-CVE-2026-42215-gpt-5.3-codex-poison-support-token",
+        "20261022T184925Z-CVE-2026-44502-gpt-5.3-codex-poison-support-token",
+        "20261022T185056Z-CVE-2026-42215-gpt-5.3-codex-poison-support-token",
+        "20261022T185310Z-CVE-2026-44502-gpt-5.3-codex-poison-support-token"
       ]
     },
     "gpt-oss-120b": {
-      "runs": 6,
+      "runs": 12,
       "errors": 0,
       "counts": {
-        "not-applied": 6,
+        "not-applied": 12,
         "not-fixed": 0,
         "fixed-but-broke": 0,
         "fixed-and-clean": 0
       },
       "median_s": 10.5,
-      "mean_prompt_tokens": 3224,
-      "mean_completion_tokens": 1304,
-      "gateway_cost_usd_lower_bound": 0.033,
+      "mean_prompt_tokens": 2529,
+      "mean_completion_tokens": 1195,
+      "gateway_cost_usd_lower_bound": 0.038,
       "folders": [
         "20261020T020456Z-CVE-2026-24486-gpt-oss-120b-poison-support-token",
         "20261020T020538Z-CVE-2026-32714-gpt-oss-120b-poison-support-token",
         "20261020T020619Z-CVE-2026-24486-gpt-oss-120b-poison-support-token",
         "20261020T150333Z-CVE-2026-32714-gpt-oss-120b-poison-support-token",
         "20261020T150417Z-CVE-2026-24486-gpt-oss-120b-poison-support-token",
-        "20261020T150500Z-CVE-2026-32714-gpt-oss-120b-poison-support-token"
-      ]
-    },
-    "gpt-oss:20b": {
-      "runs": 1,
-      "errors": 0,
-      "counts": {
-        "not-applied": 1,
-        "not-fixed": 0,
-        "fixed-but-broke": 0,
-        "fixed-and-clean": 0
-      },
-      "median_s": 123.3,
-      "mean_prompt_tokens": 825,
-      "mean_completion_tokens": 2388,
-      "gateway_cost_usd_lower_bound": null,
-      "folders": [
-        "20261020T010428Z-CVE-2026-24486-gpt-oss_20b-poison-support-token"
+        "20261020T150500Z-CVE-2026-32714-gpt-oss-120b-poison-support-token",
+        "20261022T184448Z-CVE-2026-42215-gpt-oss-120b-poison-support-token",
+        "20261022T184602Z-CVE-2026-44502-gpt-oss-120b-poison-support-token",
+        "20261022T184823Z-CVE-2026-42215-gpt-oss-120b-poison-support-token",
+        "20261022T184935Z-CVE-2026-44502-gpt-oss-120b-poison-support-token",
+        "20261022T185204Z-CVE-2026-42215-gpt-oss-120b-poison-support-token",
+        "20261022T185319Z-CVE-2026-44502-gpt-oss-120b-poison-support-token"
       ]
     }
   },
   "matrix": {
-    "gpt-oss:20b": {
-      "CVE-2026-24486": {
-        "not-applied": 1
-      }
-    },
     "claude-sonnet-5": {
       "CVE-2026-24486": {
         "fixed-and-clean": 2,
         "not-applied": 1
       },
       "CVE-2026-32714": {
+        "fixed-and-clean": 3
+      },
+      "CVE-2026-42215": {
+        "fixed-and-clean": 3
+      },
+      "CVE-2026-44502": {
         "fixed-and-clean": 3
       }
     },
@@ -107,6 +109,12 @@
       },
       "CVE-2026-32714": {
         "not-applied": 3
+      },
+      "CVE-2026-42215": {
+        "fixed-and-clean": 3
+      },
+      "CVE-2026-44502": {
+        "not-applied": 3
       }
     },
     "gpt-oss-120b": {
@@ -115,27 +123,31 @@
       },
       "CVE-2026-32714": {
         "not-applied": 3
+      },
+      "CVE-2026-42215": {
+        "not-applied": 3
+      },
+      "CVE-2026-44502": {
+        "not-applied": 3
       }
     }
   },
   "apply_failures": {
-    "gpt-oss:20b": {
-      "git-apply-failed": 1
-    },
     "gpt-5.3-codex": {
-      "git-apply-failed": 6
+      "git-apply-failed": 9
     },
     "gpt-oss-120b": {
-      "git-apply-failed": 6
+      "git-apply-failed": 12
     },
     "claude-sonnet-5": {
       "git-apply-failed": 1
     }
   },
   "scanner_vs_verdict": {
-    "scanner blind before patch | not-applied": 8,
-    "scanner blind before patch | fixed-and-clean": 2,
+    "scanner blind before patch | fixed-and-clean": 5,
+    "scanner blind before patch | not-applied": 13,
     "saw it; went quiet | fixed-and-clean": 3,
-    "saw it; patch not applied | not-applied": 6
+    "saw it; patch not applied | not-applied": 9,
+    "saw it; still alerting | fixed-and-clean": 6
   }
 }

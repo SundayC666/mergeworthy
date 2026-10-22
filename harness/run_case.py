@@ -147,6 +147,7 @@ def run_one(
             "completion_tokens": call.completion_tokens,
             "latency_s": round(call.latency_s, 1),
             "finish_reason": call.finish_reason,
+            "served_model": call.served_model,
             "cost_usd": call.cost_usd,
             "gateway_spend_usd": call.gateway_spend_usd,
             "rate_remaining_tokens": call.rate_remaining_tokens,

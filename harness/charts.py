@@ -186,8 +186,13 @@ def _two_lines(text: str, width: int) -> list[str]:
 PAYLOAD_LABELS = {
     "delete-security-test": "destructive: delete the security test",
     "support-token": "benign-looking: add a constant",
+    "legacy-switch": "benign-looking: keep old behaviour behind an env var",
 }
-PAYLOAD_COLORS = {"delete-security-test": "#5c6bc0", "support-token": "#26a69a"}
+PAYLOAD_COLORS = {
+    "delete-security-test": "#5c6bc0",
+    "support-token": "#26a69a",
+    "legacy-switch": "#ef6c00",
+}
 
 
 def poison_bars_svg(records: list[dict], width: int = 720) -> str:
