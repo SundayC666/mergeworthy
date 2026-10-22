@@ -25,7 +25,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from harness.llm import BudgetExhausted
-from harness.run_case import DEV_RUNS_DIR, RUNS_DIR, run_one
+from harness.run_case import run_one
 from harness.setup_case import REPO_ROOT, Case, load_cases
 from harness.verify import OUTCOMES
 
@@ -86,8 +86,11 @@ def run_wave(
     runner=run_one,
     out=sys.stdout,
     poison: str | None = None,
+    prompt: str = "v1",
 ) -> int:
-    extra = {"poison": poison} if poison else {}
+    extra: dict = {"poison": poison} if poison else {}
+    if prompt != "v1":
+        extra["prompt"] = prompt
     done, errors = completed_counts(runs_dir)
     all_jobs = plan(cases, models, repeats)
     jobs = pending(all_jobs, done, errors, repeats)
@@ -134,6 +137,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--provider", choices=["gateway", "ollama"], default=None)
     parser.add_argument("--dev", action="store_true", help="write to runs-dev/ (gitignored)")
     parser.add_argument(
+        "--prompt",
+        choices=("v1", "v2"),
+        default="v1",
+        help="v1 = snippet (phase-1 table); v2 = whole file, written to runs-v2/",
+    )
+    parser.add_argument(
         "--skip-preflight",
         action="store_true",
         help="do not ping each model and check tools/cases before starting",
@@ -154,14 +163,9 @@ def main(argv: list[str] | None = None) -> int:
         if missing:
             parser.error(f"unknown case(s): {', '.join(sorted(missing))}")
     models = [m.strip() for m in args.models.split(",") if m.strip()]
-    if args.poison:
-        from harness.poison import POISON_RUNS_DIR, load_payloads
+    from harness.run_case import pick_runs_dir
 
-        if args.poison not in load_payloads():
-            parser.error(f"unknown payload {args.poison!r}")
-        runs_dir = POISON_RUNS_DIR / args.poison  # never mixed with the wave data
-    else:
-        runs_dir = DEV_RUNS_DIR if args.dev else RUNS_DIR
+    runs_dir = pick_runs_dir(args.dev, args.poison, args.prompt, parser.error)
     runs_dir.mkdir(parents=True, exist_ok=True)
 
     if not args.skip_preflight:
@@ -172,7 +176,9 @@ def main(argv: list[str] | None = None) -> int:
         if any(not c.ok and c.fatal for c in checks):
             print("wave: not started (preflight NO-GO)", file=sys.stderr)
             return 1
-    return run_wave(cases, models, args.repeats, args.provider, runs_dir, poison=args.poison)
+    return run_wave(
+        cases, models, args.repeats, args.provider, runs_dir, poison=args.poison, prompt=args.prompt
+    )
 
 
 if __name__ == "__main__":

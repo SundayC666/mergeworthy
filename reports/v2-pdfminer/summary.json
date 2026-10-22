@@ -1,0 +1,92 @@
+{
+  "runs_dir": "runs-v2",
+  "records": 9,
+  "per_model": {
+    "claude-sonnet-5": {
+      "runs": 3,
+      "errors": 0,
+      "counts": {
+        "not-applied": 0,
+        "not-fixed": 0,
+        "fixed-but-broke": 1,
+        "fixed-and-clean": 2
+      },
+      "median_s": 30.4,
+      "mean_prompt_tokens": 8962,
+      "mean_completion_tokens": 1068,
+      "gateway_cost_usd_lower_bound": 0.0169,
+      "folders": [
+        "20261022T211939Z-CVE-2025-64512-claude-sonnet-5",
+        "20261022T212057Z-CVE-2025-64512-claude-sonnet-5",
+        "20261022T212216Z-CVE-2025-64512-claude-sonnet-5"
+      ]
+    },
+    "gpt-5.3-codex": {
+      "runs": 3,
+      "errors": 0,
+      "counts": {
+        "not-applied": 0,
+        "not-fixed": 0,
+        "fixed-but-broke": 1,
+        "fixed-and-clean": 2
+      },
+      "median_s": 21.7,
+      "mean_prompt_tokens": 5621,
+      "mean_completion_tokens": 402,
+      "gateway_cost_usd_lower_bound": 0.0309,
+      "folders": [
+        "20261022T212013Z-CVE-2025-64512-gpt-5.3-codex",
+        "20261022T212130Z-CVE-2025-64512-gpt-5.3-codex",
+        "20261022T212245Z-CVE-2025-64512-gpt-5.3-codex"
+      ]
+    },
+    "gpt-oss-120b": {
+      "runs": 3,
+      "errors": 0,
+      "counts": {
+        "not-applied": 3,
+        "not-fixed": 0,
+        "fixed-but-broke": 0,
+        "fixed-and-clean": 0
+      },
+      "median_s": 16.7,
+      "mean_prompt_tokens": 5685,
+      "mean_completion_tokens": 1315,
+      "gateway_cost_usd_lower_bound": 0.0,
+      "folders": [
+        "20261022T212038Z-CVE-2025-64512-gpt-oss-120b",
+        "20261022T212156Z-CVE-2025-64512-gpt-oss-120b",
+        "20261022T212312Z-CVE-2025-64512-gpt-oss-120b"
+      ]
+    }
+  },
+  "matrix": {
+    "claude-sonnet-5": {
+      "CVE-2025-64512": {
+        "fixed-and-clean": 2,
+        "fixed-but-broke": 1
+      }
+    },
+    "gpt-5.3-codex": {
+      "CVE-2025-64512": {
+        "fixed-but-broke": 1,
+        "fixed-and-clean": 2
+      }
+    },
+    "gpt-oss-120b": {
+      "CVE-2025-64512": {
+        "not-applied": 3
+      }
+    }
+  },
+  "apply_failures": {
+    "gpt-oss-120b": {
+      "git-apply-failed": 3
+    }
+  },
+  "scanner_vs_verdict": {
+    "saw it; still alerting | fixed-and-clean": 4,
+    "saw it; still alerting | fixed-but-broke": 2,
+    "saw it; patch not applied | not-applied": 3
+  }
+}

@@ -22,6 +22,10 @@ from harness.setup_case import Case, HarnessError
 
 # v1.0 showed the snippet with a line-number gutter; v1.1 shows it verbatim.
 PROMPT_VERSION = "v1.1-snippet"
+# v2 shows the whole file. It exists for one question (2026-10-22): the two fixed-but-broke
+# patches used `re` without importing it, and v1 hides the import block. Runs under v2 go
+# to runs-v2/, never into the v1 table.
+PROMPT_VERSION_IDS = {"v1": PROMPT_VERSION, "v2": "v2.0-whole-file"}
 
 
 # --- locate.md -> what to show the model ---------------------------------------------
@@ -160,6 +164,35 @@ def build_prompt_v1(advisory: str, target: Target, snippet: Snippet) -> tuple[st
         f"{OUTPUT_CONTRACT_V1.format(file=target.file)}"
     )
     return SYSTEM_PROMPT_V1, user
+
+
+def build_prompt_v2(
+    advisory: str, target: Target, snippet: Snippet, source: str
+) -> tuple[str, str]:
+    """Prompt v2: the same advisory and output contract, but the WHOLE file instead of
+    the snippet. The target is still named so the model knows where to look."""
+    user = (
+        f"## Advisory\n\n{advisory.strip()}\n\n"
+        f"## Location\n\nFile: `{target.file}`\nTarget: `{target.qualname}` "
+        f"(lines {snippet.start_line}-{snippet.end_line} of the file below)\n\n"
+        f"## Current file\n\nThe whole file, shown exactly as in the repository.\n\n"
+        f"```python\n{source}\n```\n\n"
+        f"{OUTPUT_CONTRACT_V1.format(file=target.file)}"
+    )
+    return SYSTEM_PROMPT_V1, user
+
+
+def build_prompt(
+    version: str, advisory: str, target: Target, snippet: Snippet, source: str | None = None
+) -> tuple[str, str]:
+    """Dispatch on the prompt version ("v1" or "v2"); v2 needs the file text."""
+    if version == "v1":
+        return build_prompt_v1(advisory, target, snippet)
+    if version == "v2":
+        if source is None:
+            raise HarnessError("prompt v2 needs the file source")
+        return build_prompt_v2(advisory, target, snippet, source)
+    raise HarnessError(f"unknown prompt version {version!r}")
 
 
 # Decision (2026-10-17, see decision log): the model returns a unified diff and the

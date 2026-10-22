@@ -9,6 +9,7 @@ import pytest
 from harness.patch import (
     Target,
     apply_reply,
+    build_prompt,
     extract_diff,
     extract_snippet,
     parse_locate,
@@ -235,3 +236,17 @@ def test_parse_locate_qualified_method_without_class_line():
     # GitPython, mako and liquid write "Method: Class.method" with no "Class:" line.
     text = "  File: git/cmd.py\n  Method: Git.check_unsafe_options\n"
     assert parse_locate(text) == Target("git/cmd.py", "Git.check_unsafe_options")
+
+
+def test_prompt_v2_shows_the_whole_file_and_v1_only_the_snippet(repo):
+    t = Target("pkg/mod.py", "File.__init__")
+    s = extract_snippet(repo, t)
+    source = (repo / "pkg" / "mod.py").read_text()
+    _, v1 = build_prompt("v1", "ADV", t, s)
+    _, v2 = build_prompt("v2", "ADV", t, s, source)
+    assert "import os" not in v1 and "import os" in v2  # the import block is what v2 adds
+    assert "## Current file" in v2 and f"lines {s.start_line}-{s.end_line}" in v2
+    with pytest.raises(HarnessError):
+        build_prompt("v2", "ADV", t, s)  # no source
+    with pytest.raises(HarnessError):
+        build_prompt("v9", "ADV", t, s)

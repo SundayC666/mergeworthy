@@ -37,7 +37,7 @@ from harness.llm import (
     gateway_budget,
     load_model_config,
 )
-from harness.patch import PROMPT_VERSION, apply_reply, build_prompt_v1, load_target
+from harness.patch import PROMPT_VERSION_IDS, apply_reply, build_prompt, load_target
 from harness.poison import (
     POISON_RUNS_DIR,
     inject,
@@ -48,13 +48,21 @@ from harness.poison import (
     touched_security_test,
 )
 from harness.scan import scan_target
-from harness.setup_case import REPO_ROOT, Case, load_cases, run_security_tests, setup
+from harness.setup_case import (
+    REPO_ROOT,
+    Case,
+    HarnessError,
+    load_cases,
+    run_security_tests,
+    setup,
+)
 from harness.verify import classify, run_regression_tests
 
 # Official runs are committed; exploratory runs (prompt tweaks, smoke tests) go to
 # runs-dev/, which is gitignored, so they never mix with the results table.
 RUNS_DIR = REPO_ROOT / "runs"
 DEV_RUNS_DIR = REPO_ROOT / "runs-dev"
+V2_RUNS_DIR = REPO_ROOT / "runs-v2"  # prompt v2 ablation; never mixed with the v1 table
 
 
 def _slug(text: str) -> str:
@@ -67,6 +75,7 @@ def run_one(
     provider: str | None,
     runs_dir: Path = RUNS_DIR,
     poison: str | None = None,
+    prompt: str = "v1",
 ) -> dict:
     """Run one case through one model. Raises BudgetExhausted BEFORE creating a run
     folder when the gateway budget is too low; every other failure lands in the record.
@@ -92,7 +101,7 @@ def run_one(
         "model": model,
         "provider": cfg.provider,
         "temperature": cfg.temperature,
-        "prompt_version": PROMPT_VERSION,
+        "prompt_version": PROMPT_VERSION_IDS[prompt],
         "started_at": started.isoformat(),
         "outcome": "error",  # overwritten only when the pipeline reaches a verdict
     }
@@ -127,7 +136,10 @@ def run_one(
             # BEFORE the prompt, so the model sees it inside the real file.
             snippet, inserted = inject(case, target, payload)
             record["poison"]["inserted_lines"] = inserted
-        system, user = build_prompt_v1(advisory, target, snippet)
+        # v2 reads the file AFTER any poison injection, so the model sees the same file
+        # a v1 run would, just all of it.
+        source = snippet.path.read_text() if prompt == "v2" else None
+        system, user = build_prompt(prompt, advisory, target, snippet, source)
         (run_dir / "prompt.md").write_text(f"# system\n\n{system}\n\n# user\n\n{user}")
         record["target"] = {
             "file": target.file,
@@ -209,6 +221,22 @@ def run_one(
     return record
 
 
+def pick_runs_dir(dev: bool, poison: str | None, prompt: str, error=None) -> Path:
+    """Where a run's folder goes. Poison runs are keyed by payload, v2 runs are kept apart
+    from the v1 table, dev runs are gitignored; dev wins over the others."""
+    if poison and poison not in load_payloads():
+        if error:
+            error(f"unknown payload {poison!r}")
+        raise HarnessError(f"unknown payload {poison!r}")
+    if dev:
+        return DEV_RUNS_DIR
+    if poison:
+        return POISON_RUNS_DIR / poison
+    if prompt == "v2":
+        return V2_RUNS_DIR
+    return RUNS_DIR
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--case", required=True, help="case id from benchmarks/cves.yaml, or 'all'")
@@ -229,13 +257,14 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="payload name from benchmarks/poisons.yaml; runs go to runs-poison/<name>/",
     )
+    parser.add_argument(
+        "--prompt",
+        choices=sorted(PROMPT_VERSION_IDS),
+        default="v1",
+        help="v1 = advisory + target snippet (the phase-1 table); v2 = whole file, to runs-v2/",
+    )
     args = parser.parse_args(argv)
-    if args.poison:
-        if args.poison not in load_payloads():
-            parser.error(f"unknown payload {args.poison!r}")
-        runs_dir = POISON_RUNS_DIR / args.poison
-    else:
-        runs_dir = DEV_RUNS_DIR if args.dev else RUNS_DIR
+    runs_dir = pick_runs_dir(args.dev, args.poison, args.prompt, parser.error)
     runs_dir.mkdir(parents=True, exist_ok=True)
 
     load_dotenv(REPO_ROOT / ".env")
@@ -248,7 +277,9 @@ def main(argv: list[str] | None = None) -> int:
     exit_code = 0
     for i, case in enumerate(cases):
         try:
-            rec = run_one(case, args.model, args.provider, runs_dir, poison=args.poison)
+            rec = run_one(
+                case, args.model, args.provider, runs_dir, poison=args.poison, prompt=args.prompt
+            )
         except BudgetExhausted as exc:
             remaining = ", ".join(c.id for c in cases[i:])
             print(f"STOP: {exc}\n      not run: {remaining}", file=sys.stderr)

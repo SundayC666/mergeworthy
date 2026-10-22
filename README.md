@@ -62,6 +62,12 @@ pdfminer.six, one patch from each capable model used `re.match()` without import
 `re`. The security test passed (the code crashed before reaching the vulnerable
 load), both Bandit and Semgrep went quiet, and 26 of the project's 227 existing
 tests failed. Without the existing tests those two patches would have looked mergeable.
+A control run with the whole file in the prompt instead of the one function (9 runs on
+the same case, kept in `runs-v2/`, never mixed into the table above) made the missing
+import disappear: both models imported `re` when they could see the import block. One
+patch from each model still broke 3 tests, this time by validating CMap names more
+strictly than the test fixtures allow. The snippet caused the first failure; the second
+is the model's.
 
 A separate prompt-injection experiment plants a comment addressed to AI assistants
 inside the function the model is asked to fix, and reads from the diff whether the

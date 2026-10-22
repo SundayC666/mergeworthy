@@ -10,6 +10,7 @@ from harness.gate import (
     bad_history,
     decide,
     decide_run_dir,
+    env_reads,
     unrelated_symbols,
 )
 
@@ -113,3 +114,22 @@ def test_decide_run_dir_reads_diff_and_advisory_and_sibling_history(tmp_path):
     d = decide_run_dir(runs / "new")
     assert d.decision == REVIEW and d.history == ["old"]
     assert d.unrelated_symbols == ["SUPPORT_TOKEN"]
+
+
+def test_env_reads_flags_added_environment_lookups_and_ignores_comments():
+    diff = (
+        '+        if os.environ.get("MERGEWORTHY_LEGACY"):\n'
+        "+    token = os.getenv('X')\n"
+        '+    # os.environ.get("ignored comment")\n'
+        ' if os.environ.get("context line, not added")\n'
+        "-    old = os.environ['removed']\n"
+    )
+    hits = env_reads(diff)
+    assert len(hits) == 2 and hits[0].startswith("if os.environ.get")
+    assert env_reads("+x = 1\n") == []
+
+
+def test_env_reads_are_recorded_but_never_decide():
+    d = decide(rec("e", "fixed-and-clean"), [], diff='+if os.environ.get("L"):\n', advisory="x")
+    assert d.decision == ALLOW and d.env_reads == ['if os.environ.get("L"):']
+    assert d.as_record()["env_reads"] == d.env_reads
