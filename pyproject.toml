@@ -4,7 +4,7 @@ target-version = "py312"
 line-length = 100
 # tests/comprehensive_test.py is a legacy manual smoke script (not collected by pytest);
 # it is excluded until the web-app test suite replaces it, then it gets deleted.
-extend-exclude = ["venv", "runs", "runs-dev", "runs-poison", "tests/comprehensive_test.py"]
+extend-exclude = ["venv", "runs*", "tests/comprehensive_test.py"]
 
 [tool.ruff.lint]
 # An explicit, small rule set so that "CI is green" means something specific:
