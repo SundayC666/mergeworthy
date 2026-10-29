@@ -50,3 +50,40 @@ def test_version_status_does_not_leak_server_path(client):
     body = client.get("/api/versions/buttons").json()
     cache_status = body.get("cache_status", {})
     assert "cache_file" not in cache_status, f"server path leaked: {cache_status.get('cache_file')}"
+
+
+# --- XSS fix + CSP (2026-10-29, the item the 9/27 checklist scheduled for 11/19) ---------
+
+
+@pytest.mark.parametrize("path", ["/", "/api/health"])
+def test_every_response_carries_a_csp_without_inline_scripts(client, path):
+    csp = client.get(path).headers["Content-Security-Policy"]
+    directives = {d.strip().split(" ")[0]: d.strip() for d in csp.split(";") if d.strip()}
+    assert directives["script-src"] == "script-src 'self'"  # no 'unsafe-inline', no CDNs
+    assert directives["object-src"] == "object-src 'none'"
+    assert directives["frame-ancestors"] == "frame-ancestors 'none'"
+    assert directives["base-uri"] == "base-uri 'self'"
+
+
+def test_front_end_has_no_inline_event_handlers():
+    # The CSP above would silently break the page if any came back.
+    from pathlib import Path
+
+    for f in ("static/index.html", "static/js/app.js", "static/js/cve_analyzer.js"):
+        code = [
+            line
+            for line in Path(f).read_text().splitlines()
+            if not line.lstrip().startswith(("//", "*", "<!--"))
+        ]
+        assert not [ln for ln in code if 'onclick="' in ln or 'onkeypress="' in ln], f
+
+
+def test_front_end_escapes_what_nvd_sends():
+    from pathlib import Path
+
+    js = Path("static/js/cve_analyzer.js").read_text()
+    assert "function escapeHtml" in js
+    for field in ("title", "description", "remediation_summary", "cve", "severity"):
+        assert f"${{finding.{field}}}" not in js, f"finding.{field} rendered unescaped"
+        assert f"escapeHtml(finding.{field}" in js
+    assert "safeNvdLink(finding.nvd_link)" in js

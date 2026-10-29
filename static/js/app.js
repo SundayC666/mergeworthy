@@ -342,17 +342,17 @@ async function detectUserOS() {
             let browserInfo = '';
             if (detectedOS.browser && detectedOS.browser.name) {
                 browserInfo = `
-                    <div style="margin-top: 0.5rem;"><strong>Browser:</strong> ${detectedOS.browser.name}${detectedOS.browser.version ? ' ' + detectedOS.browser.version : ''}</div>
-                    <div><strong>Engine:</strong> ${detectedOS.browser.engine || 'Unknown'}</div>
+                    <div style="margin-top: 0.5rem;"><strong>Browser:</strong> ${escapeHtml(detectedOS.browser.name)}${detectedOS.browser.version ? ' ' + escapeHtml(detectedOS.browser.version) : ''}</div>
+                    <div><strong>Engine:</strong> ${escapeHtml(detectedOS.browser.engine || 'Unknown')}</div>
                 `;
             }
 
             osDetails.innerHTML = `
-                <div><strong>Family:</strong> ${detectedOS.family}</div>
-                <div><strong>Version:</strong> ${detectedOS.version || 'Not detected'}</div>
+                <div><strong>Family:</strong> ${escapeHtml(detectedOS.family)}</div>
+                <div><strong>Version:</strong> ${escapeHtml(detectedOS.version || 'Not detected')}</div>
                 ${browserInfo}
                 <div style="margin-top: 0.5rem;"><strong>CVE Tags:</strong></div>
-                <div><code>${detectedOS.tags.join('</code>, <code>') || 'none'}</code></div>
+                <div><code>${(detectedOS.tags || []).map(escapeHtml).join('</code>, <code>') || 'none'}</code></div>
             `;
         }
 
@@ -395,13 +395,14 @@ async function loadQuickButtons() {
 
         // Generate button HTML
         const buttonsHtml = buttons.map(btn => `
-            <button class="os-quick-btn ${btn.css_class}" data-query="${btn.query}" onclick="quickOSSearch(this)">
-                <i class="${btn.icon}"></i>
-                <span>${btn.label}</span>
+            <button class="os-quick-btn ${escapeHtml(btn.css_class)}" data-query="${escapeHtml(btn.query)}">
+                <i class="${escapeHtml(btn.icon)}"></i>
+                <span>${escapeHtml(btn.label)}</span>
             </button>
         `).join('');
 
         container.innerHTML = buttonsHtml;
+        bindQuickButtons(container);
         console.log(`Loaded ${buttons.length} quick search buttons`);
 
         // Log cache status
@@ -413,44 +414,60 @@ async function loadQuickButtons() {
         console.error('Failed to load quick buttons:', error);
         // Show fallback buttons
         container.innerHTML = `
-            <button class="os-quick-btn macos" data-query="macOS" onclick="quickOSSearch(this)">
+            <button class="os-quick-btn macos" data-query="macOS">
                 <i class="fab fa-apple"></i>
                 <span>macOS</span>
             </button>
-            <button class="os-quick-btn windows" data-query="Windows" onclick="quickOSSearch(this)">
+            <button class="os-quick-btn windows" data-query="Windows">
                 <i class="fab fa-windows"></i>
                 <span>Windows</span>
             </button>
-            <button class="os-quick-btn linux" data-query="Ubuntu" onclick="quickOSSearch(this)">
+            <button class="os-quick-btn linux" data-query="Ubuntu">
                 <i class="fab fa-ubuntu"></i>
                 <span>Ubuntu</span>
             </button>
-            <button class="os-quick-btn ios" data-query="iOS" onclick="quickOSSearch(this)">
+            <button class="os-quick-btn ios" data-query="iOS">
                 <i class="fab fa-apple"></i>
                 <span>iOS</span>
             </button>
-            <button class="os-quick-btn android" data-query="Android" onclick="quickOSSearch(this)">
+            <button class="os-quick-btn android" data-query="Android">
                 <i class="fab fa-android"></i>
                 <span>Android</span>
             </button>
-            <button class="os-quick-btn browser" data-query="Chrome" onclick="quickOSSearch(this)">
+            <button class="os-quick-btn browser" data-query="Chrome">
                 <i class="fab fa-chrome"></i>
                 <span>Chrome</span>
             </button>
-            <button class="os-quick-btn browser" data-query="Firefox" onclick="quickOSSearch(this)">
+            <button class="os-quick-btn browser" data-query="Firefox">
                 <i class="fab fa-firefox-browser"></i>
                 <span>Firefox</span>
             </button>
-            <button class="os-quick-btn browser" data-query="Safari" onclick="quickOSSearch(this)">
+            <button class="os-quick-btn browser" data-query="Safari">
                 <i class="fab fa-safari"></i>
                 <span>Safari</span>
             </button>
         `;
+        bindQuickButtons(container);
     }
+}
+
+function bindQuickButtons(container) {
+    container.querySelectorAll('.os-quick-btn').forEach(btn => {
+        btn.addEventListener('click', () => quickOSSearch(btn));
+    });
 }
 
 // Initialize on page load with welcome flow
 document.addEventListener('DOMContentLoaded', async () => {
+    // Handlers that used to be inline onclick="" in index.html (CSP: no inline scripts).
+    document.querySelectorAll('.tab-button[data-tab]').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+    document.getElementById('analyze-btn')?.addEventListener('click', () => analyzeCVEs());
+    document.getElementById('clear-recent')?.addEventListener('click', () => clearRecentSearches());
+    document.getElementById('cve-query')?.addEventListener('keypress', event => {
+        if (event.key === 'Enter') analyzeCVEs();
+    });
     // Initialize welcome overlay
     WelcomeOverlay.init();
 
@@ -766,14 +783,15 @@ function showError(elementId, message) {
         <div class="card" style="border-left: 4px solid var(--medium);">
             <div class="card-body" style="text-align: center; padding: 2rem;">
                 <div style="font-size: 2.5rem; margin-bottom: 1rem;">😕</div>
-                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">${title}</h3>
-                <p style="color: var(--text-secondary); margin-bottom: 1rem;">${userMessage}</p>
-                <button onclick="location.reload()" class="btn-secondary" style="padding: 0.5rem 1.5rem; border-radius: 20px; border: 1px solid var(--atmos-gray); background: var(--pure-white); cursor: pointer;">
+                <h3 style="color: var(--text-primary); margin-bottom: 0.5rem;">${escapeHtml(title)}</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">${escapeHtml(userMessage)}</p>
+                <button data-reload class="btn-secondary" style="padding: 0.5rem 1.5rem; border-radius: 20px; border: 1px solid var(--atmos-gray); background: var(--pure-white); cursor: pointer;">
                     <i class="fas fa-redo" style="margin-right: 0.5rem;"></i>Try Again
                 </button>
             </div>
         </div>
     `;
+    element.querySelector('[data-reload]').addEventListener('click', () => location.reload());
 }
 
 // ============================================

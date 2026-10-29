@@ -79,6 +79,14 @@ app.add_middleware(
 async def add_security_headers(request: Request, call_next):
     """Add security headers to all responses"""
     response = await call_next(request)
+    # CSP (CWE-79 defence in depth, 2026-10-29): no inline or third-party scripts, no
+    # plugins, no framing. Inline *style* attributes are still allowed because the page
+    # uses them everywhere; tightening that is a separate, cosmetic refactor.
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; "
+        "base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"

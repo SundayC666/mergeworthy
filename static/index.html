@@ -113,7 +113,7 @@
         <div class="container">
             <!-- Tab Navigation -->
             <div class="tab-navigation">
-                <button class="tab-button active" data-tab="cve" onclick="switchTab('cve')">
+                <button class="tab-button active" data-tab="cve">
                     <i class="fas fa-bug tab-icon"></i>
                     <span>CVE Analyzer</span>
                 </button>
@@ -133,9 +133,8 @@
                                 id="cve-query"
                                 class="query-input"
                                 placeholder="e.g., Am I vulnerable to recent exploits?"
-                                onkeypress="if(event.key === 'Enter') analyzeCVEs()"
                             >
-                            <button id="analyze-btn" class="btn-primary" onclick="analyzeCVEs()">
+                            <button id="analyze-btn" class="btn-primary">
                                 <i class="fas fa-search btn-icon"></i>
                                 <span>Analyze</span>
                             </button>
@@ -150,7 +149,7 @@
                             <div class="recent-searches-list" id="recent-searches-list">
                                 <!-- Populated by JavaScript -->
                             </div>
-                            <button class="recent-searches-clear" id="clear-recent" onclick="clearRecentSearches()">
+                            <button class="recent-searches-clear" id="clear-recent">
                                 <i class="fas fa-trash-alt"></i>
                                 Clear
                             </button>

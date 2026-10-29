@@ -1,0 +1,14 @@
+# Dependabot opens a PR when a pinned dependency or a pinned Action has a newer version.
+# Every PR still has to pass the CI gates (ruff, pytest, bandit, semgrep, gitleaks,
+# pip-audit) before it can be merged; nothing is auto-merged.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

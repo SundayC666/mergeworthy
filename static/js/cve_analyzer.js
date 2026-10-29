@@ -4,6 +4,37 @@
  */
 
 // ============================================
+// Output encoding (CWE-79)
+// ============================================
+// Everything rendered here comes from NVD, CISA or the user's own input and is
+// treated as untrusted. Values go through escapeHtml() before they are put into
+// innerHTML; links go through safeNvdLink(). Click handlers are attached with
+// addEventListener instead of inline onclick="", so the page can run under a
+// Content-Security-Policy without 'unsafe-inline' for scripts (main.py).
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+}
+
+function safeNvdLink(url) {
+    // Only the NVD detail page is ever linked; anything else is dropped.
+    return typeof url === 'string' && /^https:\/\/nvd\.nist\.gov\/vuln\/detail\/CVE-\d{4}-\d+$/.test(url)
+        ? url
+        : null;
+}
+
+function bindResultHandlers(root) {
+    root.querySelectorAll('[data-toggle-details]').forEach(el => {
+        el.addEventListener('click', () => toggleDetails(el.dataset.toggleDetails));
+    });
+    root.querySelectorAll('[data-scroll-cve]').forEach(el => {
+        el.addEventListener('click', () => scrollToCVE(el.dataset.scrollCve));
+    });
+}
+
+// ============================================
 // SLA Badge Renderer
 // ============================================
 
@@ -311,10 +342,13 @@ function renderRecentSearches() {
     container.style.display = 'flex';
 
     list.innerHTML = searches.map(search => `
-        <span class="recent-search-item" onclick="searchFromRecent('${search.replace(/'/g, "\\'")}', event)" title="${search}">
-            ${search}
+        <span class="recent-search-item" data-query="${escapeHtml(search)}" title="${escapeHtml(search)}">
+            ${escapeHtml(search)}
         </span>
     `).join('');
+    list.querySelectorAll('.recent-search-item').forEach(el => {
+        el.addEventListener('click', event => searchFromRecent(el.dataset.query, event));
+    });
 }
 
 /**
@@ -512,7 +546,7 @@ function _renderCVEResultsContent(data, showEmptyMessage, resultsDiv) {
                             <circle cx="11" cy="11" r="8"></circle>
                             <path d="m21 21-4.3-4.3"></path>
                         </svg>
-                        ${data.search_description}
+                        ${escapeHtml(data.search_description)}
                     </p>
                 </div>
             </div>
@@ -603,6 +637,7 @@ function _renderCVEResultsContent(data, showEmptyMessage, resultsDiv) {
     }
 
     resultsDiv.innerHTML = html;
+    bindResultHandlers(resultsDiv);
 }
 
 /**
@@ -642,13 +677,13 @@ function renderActionPlanItem(step) {
     const cleanText = step.replace(/[🚨🔴🟠🟡🔵]\s*/g, '');
 
     // Create clickable item if CVE ID found
-    const clickHandler = cveId ? `onclick="scrollToCVE('${cveId}')"` : '';
+    const clickHandler = cveId ? `data-scroll-cve="${escapeHtml(cveId)}"` : '';
     const hoverClass = cveId ? 'action-plan-item' : '';
 
     return `
         <li class="${hoverClass}" ${clickHandler} style="margin-bottom: 0.25rem; line-height: 1.5; display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.5rem 0.75rem; margin: 0 -0.75rem; border-radius: 6px; ${cveId ? 'cursor: pointer;' : ''}">
             <span style="font-size: 1rem; color: ${indicatorColor}; flex-shrink: 0; line-height: 1.4;" title="${indicatorTitle}">${indicatorIcon}</span>
-            <span>${cleanText}${cveId ? ' <i class="fas fa-arrow-right" style="font-size: 0.7rem; opacity: 0.5; margin-left: 0.25rem;"></i>' : ''}</span>
+            <span>${escapeHtml(cleanText)}${cveId ? ' <i class="fas fa-arrow-right" style="font-size: 0.7rem; opacity: 0.5; margin-left: 0.25rem;"></i>' : ''}</span>
         </li>
     `;
 }
@@ -683,7 +718,8 @@ function renderCVECard(finding, isYourSystem, cardIndex) {
     const severityColor = severityColors[finding.severity] || 'var(--text-secondary)';
     const borderColor = isYourSystem ? 'var(--caramel)' : 'var(--atmos-gray)';
     const detailsId = `cve-details-${cardIndex}`;
-    const cardId = finding.cve ? `cve-card-${finding.cve}` : `cve-card-${cardIndex}`;
+    const cveId = typeof finding.cve === 'string' && /^CVE-\d{4}-\d+$/.test(finding.cve) ? finding.cve : null;
+    const cardId = cveId ? `cve-card-${cveId}` : `cve-card-${cardIndex}`;
 
     // Source type badge (OS or Browser)
     let sourceTypeBadge = '';
@@ -708,11 +744,11 @@ function renderCVECard(finding, isYourSystem, cardIndex) {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                     <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                         <h4 style="color: var(--text-primary); margin: 0;">
-                            ${finding.cve || 'N/A'}
+                            ${escapeHtml(finding.cve || 'N/A')}
                         </h4>
                         ${sourceTypeBadge}
                         <span class="severity-badge" style="background: ${severityColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
-                            ${finding.severity || 'UNKNOWN'}
+                            ${escapeHtml(finding.severity || 'UNKNOWN')}
                         </span>
                         ${finding.is_exploited ? `
                             <span style="display: inline-flex; align-items: center; gap: 0.25rem; background: var(--critical); color: white; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem;">
@@ -724,9 +760,10 @@ function renderCVECard(finding, isYourSystem, cardIndex) {
     `;
 
     // NVD Link
-    if (finding.nvd_link) {
+    const nvdLink = safeNvdLink(finding.nvd_link);
+    if (nvdLink) {
         cardHtml += `
-                    <a href="${finding.nvd_link}" target="_blank" style="color: var(--accent-teal); text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.25rem;">
+                    <a href="${nvdLink}" target="_blank" rel="noopener noreferrer" style="color: var(--accent-teal); text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.25rem;">
                         NVD
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -747,18 +784,18 @@ function renderCVECard(finding, isYourSystem, cardIndex) {
         if (finding.published_date || finding.last_modified_date) {
             const parts = [];
             if (finding.published_date) {
-                parts.push(`Published: ${finding.published_date}`);
+                parts.push(`Published: ${escapeHtml(finding.published_date)}`);
             }
             if (finding.last_modified_date && finding.last_modified_date !== finding.published_date) {
-                parts.push(`Updated: ${finding.last_modified_date}`);
+                parts.push(`Updated: ${escapeHtml(finding.last_modified_date)}`);
             }
             dateDisplay = `<span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: normal; margin-left: 0.5rem;">${parts.join(' · ')}</span>`;
         }
-        cardHtml += `<p style="font-weight: 500; color: var(--text-primary); margin-bottom: 0.5rem;">${finding.title}${dateDisplay}</p>`;
+        cardHtml += `<p style="font-weight: 500; color: var(--text-primary); margin-bottom: 0.5rem;">${escapeHtml(finding.title)}${dateDisplay}</p>`;
     } else if (finding.published_date) {
-        let dateText = finding.published_date;
+        let dateText = escapeHtml(finding.published_date);
         if (finding.last_modified_date && finding.last_modified_date !== finding.published_date) {
-            dateText = `Published: ${finding.published_date} · Updated: ${finding.last_modified_date}`;
+            dateText = `Published: ${escapeHtml(finding.published_date)} · Updated: ${escapeHtml(finding.last_modified_date)}`;
         }
         cardHtml += `<p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">${dateText}</p>`;
     }
@@ -768,9 +805,9 @@ function renderCVECard(finding, isYourSystem, cardIndex) {
         cardHtml += `
             <div style="display: flex; align-items: center; justify-content: space-between; background: var(--powder-sky); padding: 0.75rem; border-radius: 6px; margin-top: 0.5rem;">
                 <p style="color: var(--accent-indigo); font-size: 0.9rem; margin: 0; font-weight: 500;">
-                    ${finding.remediation_summary}
+                    ${escapeHtml(finding.remediation_summary)}
                 </p>
-                <button onclick="toggleDetails('${detailsId}')" style="background: var(--accent-indigo); color: white; border: none; padding: 0.35rem 0.75rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 0.25rem;">
+                <button data-toggle-details="${detailsId}" style="background: var(--accent-indigo); color: white; border: none; padding: 0.35rem 0.75rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 0.25rem;">
                     Details
                     <svg id="${detailsId}-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s;">
                         <polyline points="6 9 12 15 18 9"></polyline>
@@ -790,7 +827,7 @@ function renderCVECard(finding, isYourSystem, cardIndex) {
         cardHtml += `
             <div style="margin-bottom: 0.75rem;">
                 <p style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; font-size: 0.9rem;">Description</p>
-                <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">${finding.description}</p>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">${escapeHtml(finding.description)}</p>
             </div>
         `;
     }
@@ -801,14 +838,14 @@ function renderCVECard(finding, isYourSystem, cardIndex) {
         if (finding.published_date) {
             cardHtml += `
                 <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
-                    <span style="font-weight: 600;">Published:</span> ${finding.published_date}
+                    <span style="font-weight: 600;">Published:</span> ${escapeHtml(finding.published_date)}
                 </p>
             `;
         }
         if (finding.last_modified_date && finding.last_modified_date !== finding.published_date) {
             cardHtml += `
                 <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
-                    <span style="font-weight: 600;">Last Updated:</span> ${finding.last_modified_date}
+                    <span style="font-weight: 600;">Last Updated:</span> ${escapeHtml(finding.last_modified_date)}
                 </p>
             `;
         }

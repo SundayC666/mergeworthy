@@ -146,7 +146,8 @@ python -m pytest -q
 ```
 
 Unit tests only: fake scripts, a fake model client, no network, no budget. CI runs
-these plus ruff, Bandit and pip-audit on every push; it never executes a CVE-Bench case
+these plus ruff, Bandit, Semgrep, gitleaks and pip-audit on every push, with every
+Action pinned to a commit SHA and Dependabot proposing bumps; it never executes a CVE-Bench case
 or calls a model.
 
 ---
