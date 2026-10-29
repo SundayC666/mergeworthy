@@ -29,4 +29,4 @@ httpx==0.28.1
 # Harness (benchmarks/cves.yaml, harness/) and the web app's optional Ollama call
 # ============================================
 PyYAML==6.0.3
-openai==3.30.0
+openai==3.39.0
