@@ -29,6 +29,7 @@ from harness.llm import (
     assert_budget,
     build_client,
     load_model_config,
+    redact,
 )
 from harness.setup_case import REPO_ROOT, Case, load_cases
 
@@ -90,7 +91,7 @@ def ping_model(model: str, provider: str | None, client_factory=build_client) ->
             **({"extra_body": {"cache": {"no-cache": True}}} if cfg.provider == "gateway" else {}),
         )
     except Exception as exc:  # noqa: BLE001 - any failure here is exactly what we want to see
-        return Check(f"model {model}", False, f"{type(exc).__name__}: {str(exc)[:160]}")
+        return Check(f"model {model}", False, f"{type(exc).__name__}: {redact(str(exc))[:160]}")
     latency = time.monotonic() - started
     text = (response.choices[0].message.content or "").strip()
     remaining = (

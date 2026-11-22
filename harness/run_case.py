@@ -36,6 +36,7 @@ from harness.llm import (
     call_model,
     gateway_budget,
     load_model_config,
+    redact,
 )
 from harness.patch import PROMPT_VERSION_IDS, apply_reply, build_prompt, load_target
 from harness.poison import (
@@ -203,10 +204,10 @@ def run_one(
         record["outcome"] = verdict.outcome
         record["verdict"] = verdict.as_record()
     except Exception as exc:  # noqa: BLE001 - every failure must land in the record
-        record["error"] = f"{type(exc).__name__}: {exc}"
+        record["error"], trace = error_fields(exc)
         if getattr(exc, "usage", None):  # an empty reply still consumed tokens
             record["model_call"] = exc.usage
-        (run_dir / "traceback.txt").write_text(traceback.format_exc())
+        (run_dir / "traceback.txt").write_text(trace)
     finally:
         record["total_s"] = round(time.monotonic() - t0, 1)
         if budget_before is not None:
@@ -219,6 +220,12 @@ def run_one(
                 record["gateway_spend_after_usd"] = f"lookup failed: {exc}"
         (run_dir / "record.json").write_text(json.dumps(record, indent=2))
     return record
+
+
+def error_fields(exc: BaseException) -> tuple[str, str]:
+    """What a failed run stores: (record["error"], the text of traceback.txt). Both are
+    committed with the run, so both go through redact. Call inside the except block."""
+    return redact(f"{type(exc).__name__}: {exc}"), redact(traceback.format_exc())
 
 
 def pick_runs_dir(dev: bool, poison: str | None, prompt: str, error=None) -> Path:

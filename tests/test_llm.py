@@ -19,6 +19,7 @@ from harness.llm import (
     call_model,
     gateway_budget,
     load_model_config,
+    redact,
 )
 
 # --- fakes -----------------------------------------------------------------------
@@ -310,6 +311,50 @@ def test_gateway_budget_422_stops_the_wave(monkeypatch):
     client = FakeClient([exc])
     with pytest.raises(BudgetExhausted, match="refused"):
         call_model(client, config(), "s", "u")
+
+
+# What LiteLLM really sends on a budget stop (2026-10-18), with a made-up alias and tail.
+GATEWAY_422 = (
+    "Error code: 422 - {'error': {'message': 'Budget has been exceeded! "
+    "Key=team-alias-1234-abcd (sk-...zZ9q) Current cost: 1.0053221, Max budget: 1.0', "
+    "'type': 'budget_exceeded'}}"
+)
+
+
+def test_redact_removes_the_key_alias_and_the_key_tail():
+    # Ten error records and ten tracebacks went to a public repo with both in them.
+    out = redact(GATEWAY_422)
+    assert "team-alias-1234-abcd" not in out
+    assert "zZ9q" not in out
+
+
+def test_redact_keeps_the_evidence_around_the_key():
+    assert "Current cost: 1.0053221, Max budget: 1.0" in redact(GATEWAY_422)
+
+
+def test_redact_removes_a_full_key():
+    assert "sk-abcDEF123456" not in redact("401 for Bearer sk-abcDEF123456, check the key")
+
+
+def test_redact_leaves_ordinary_errors_unchanged():
+    text = "HarnessError: setup.sh exited 1 after 12.0s"
+    assert redact(text) == text
+
+
+def test_budget_stop_message_does_not_name_the_key(monkeypatch):
+    # wave.py prints this message on the terminal when it stops.
+    from openai import UnprocessableEntityError
+
+    monkeypatch.setattr(llm_mod, "_sleep", lambda s: pytest.fail("no backoff for budget"))
+    request = httpx.Request("POST", "http://fake/v1/chat/completions")
+    exc = UnprocessableEntityError(
+        GATEWAY_422, response=httpx.Response(422, request=request), body=None
+    )
+    with pytest.raises(BudgetExhausted) as stopped:
+        call_model(FakeClient([exc]), config(), "s", "u")
+    assert "Budget has been exceeded" in str(stopped.value)
+    assert "team-alias-1234-abcd" not in str(stopped.value)
+    assert "zZ9q" not in str(stopped.value)
 
 
 def test_other_422_is_not_treated_as_budget():

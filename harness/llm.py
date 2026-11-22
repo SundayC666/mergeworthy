@@ -165,7 +165,9 @@ def _create_with_backoff(client: Any, notes: list[str], **kwargs: Any) -> Any:
             # (which can run ahead of /key/info) crosses the cap. Wave 1 burned ten
             # error records in two minutes on this; it must stop the wave instead.
             if "budget" in str(exc).lower():
-                raise BudgetExhausted(f"gateway refused the call: {str(exc)[:160]}") from exc
+                raise BudgetExhausted(
+                    f"gateway refused the call: {redact(str(exc))[:160]}"
+                ) from exc
             raise
         except _TRANSIENT as exc:
             if wait is None:
@@ -195,6 +197,22 @@ class Budget:
     @property
     def remaining(self) -> float | None:
         return None if self.max_budget is None else self.max_budget - self.spend
+
+
+# LiteLLM names the key in its budget error: "Key=<alias> (sk-...<last 4>)".
+_KEY_ALIAS = re.compile(r"Key=\S+")
+_KEY_ITSELF = re.compile(r"\bsk-[\w.\-]+")
+
+
+def redact(text: str) -> str:
+    """Remove the gateway key's alias, its tail and any full key from an error text.
+
+    The harness never prints the key, but the gateway's own error message names it, and
+    that message used to be stored verbatim: on 2026-10-18 ten record.json and ten
+    traceback.txt files went into the public repo with the alias and the last four
+    characters. Everything else in the text (cost, cap, error type) is kept.
+    """
+    return _KEY_ITSELF.sub("sk-[redacted]", _KEY_ALIAS.sub("Key=[redacted]", text))
 
 
 class BudgetExhausted(RuntimeError):

@@ -45,7 +45,7 @@
       "error": null
     }
   },
-  "error": "UnprocessableEntityError: Error code: 422 - {'error': {'message': 'Budget has been exceeded! Key=gptbuilder-sc1003-i-self-69765b98-e02a-42e6-a663-ef86c683c549 (sk-...nAHQ) Current cost: 1.0053221, Max budget: 1.0', 'type': 'budget_exceeded', 'param': None, 'code': '422'}}",
+  "error": "UnprocessableEntityError: Error code: 422 - {'error': {'message': 'Budget has been exceeded! Key=[redacted] (sk-[redacted]) Current cost: 1.0053221, Max budget: 1.0', 'type': 'budget_exceeded', 'param': None, 'code': '422'}}",
   "total_s": 3.5,
   "gateway_spend_after_usd": 0.3010398499999999,
   "gateway_cost_usd_lower_bound": 0.0

@@ -48,6 +48,13 @@ def test_ping_reports_model_errors_instead_of_raising():
     assert not c.ok and "model not found" in c.detail
 
 
+def test_ping_error_detail_does_not_name_the_key():
+    boom = RuntimeError("Budget has been exceeded! Key=team-alias-1234-abcd (sk-...zZ9q)")
+    c = ping_model("m", "ollama", client_factory=lambda cfg: FakeClient(raise_exc=boom))
+    assert not c.ok and "Budget has been exceeded" in c.detail
+    assert "team-alias-1234-abcd" not in c.detail and "zZ9q" not in c.detail
+
+
 def test_ping_fails_when_gateway_unreachable(monkeypatch):
     def down(url, headers=None, timeout=None):
         raise httpx.ConnectTimeout("timed out")
