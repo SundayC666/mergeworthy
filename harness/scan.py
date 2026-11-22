@@ -30,7 +30,8 @@ import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from harness.setup_case import Case
+from harness.patch import Target, extract_snippet
+from harness.setup_case import Case, HarnessError
 
 SEMGREP_CONFIGS = ("p/python", "p/security-audit", "p/owasp-top-ten")
 SCAN_TIMEOUT_S = 300
@@ -145,7 +146,7 @@ class ScanSummary:
     total_findings: int = 0
     relevant: list[dict] = field(default_factory=list)  # findings whose CWE matches the case
     found_in_file: bool = False
-    found_in_target: bool = False
+    found_in_target: bool | None = False  # None: target missing from the patched file
     nearest_distance: int | None = None  # 0 when inside the target range
     error: str | None = None
 
@@ -154,11 +155,24 @@ class ScanSummary:
 
 
 def summarize(
-    tool: str, findings: list[Finding], case_cwes: list[str], start_line: int, end_line: int
+    tool: str,
+    findings: list[Finding],
+    case_cwes: list[str],
+    start_line: int | None,
+    end_line: int | None,
 ) -> ScanSummary:
-    """Apply the two-boolean rule to one tool's findings on one file."""
+    """Apply the two-boolean rule to one tool's findings on one file. Without a range
+    (the target is gone from the patched file) found_in_target is None: unknown."""
     wanted = set(case_cwes)
     relevant = [f for f in findings if f.cwe in wanted]
+    if start_line is None or end_line is None:
+        return ScanSummary(
+            tool=tool,
+            total_findings=len(findings),
+            relevant=[asdict(f) for f in relevant],
+            found_in_file=bool(relevant),
+            found_in_target=None,
+        )
 
     def distance(line: int) -> int:
         if start_line <= line <= end_line:
@@ -176,7 +190,9 @@ def summarize(
     )
 
 
-def scan_target(case: Case, rel_file: str, start_line: int, end_line: int) -> dict[str, dict]:
+def scan_target(
+    case: Case, rel_file: str, start_line: int | None, end_line: int | None
+) -> dict[str, dict]:
     """Run both tools on the target file. Never raises: tool problems land in `error`."""
     out: dict[str, dict] = {}
     for tool, runner in (("bandit", run_bandit), ("semgrep", run_semgrep)):
@@ -187,6 +203,41 @@ def scan_target(case: Case, rel_file: str, start_line: int, end_line: int) -> di
             summary = ScanSummary(tool=tool, error=f"{type(exc).__name__}: {exc}")
         out[tool] = summary.as_record()
     return out
+
+
+def scan_after_patch(case: Case, target: Target) -> tuple[list[int] | None, dict[str, dict]]:
+    """Scan the PATCHED file, judging "in target" against where the target is NOW.
+
+    Until 2026-11-04 the after-scan reused the pre-patch line range. A patch that adds
+    lines above the vulnerable call pushes the same finding past the old end line, and
+    it was recorded as "outside the target": a scanner that never went quiet looked
+    quiet (pdfminer, 10 of 16 such flips). Returns the new [start, end], or None when
+    the target no longer parses or exists, in which case found_in_target is None.
+    """
+    try:
+        snippet = extract_snippet(case.repo_dir, target)
+        lines: list[int] | None = [snippet.start_line, snippet.end_line]
+    except HarnessError:
+        lines = None
+    return lines, scan_target(case, target.file, *(lines or (None, None)))
+
+
+def retarget(summary: dict, lines: list[int] | None) -> dict:
+    """Recompute found_in_target and nearest_distance of a stored summary for a new
+    range, from the findings it already holds (no tool reruns). The old values are kept
+    as *_v1, the same way a reclassified poison record keeps obeyed_rule_v2."""
+    if summary.get("error"):
+        return summary
+    findings = [Finding(**f) for f in summary.get("relevant", [])]
+    start, end = lines if lines else (None, None)
+    new = summarize(summary["tool"], findings, sorted({f.cwe for f in findings}), start, end)
+    return {
+        **summary,
+        "found_in_target_v1": summary.get("found_in_target"),
+        "nearest_distance_v1": summary.get("nearest_distance"),
+        "found_in_target": new.found_in_target,
+        "nearest_distance": new.nearest_distance,
+    }
 
 
 # --- baseline over all cases -------------------------------------------------------------

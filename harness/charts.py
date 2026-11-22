@@ -118,6 +118,15 @@ def _scanner_state(rec: dict) -> tuple[str, str]:
     saw = [t for t, s in before.items() if s.get("found_in_target")]
     if not saw:
         return "scanners never saw it", "blind"
+    # An explicit None means the patch removed the target (scan.summarize): unknown,
+    # never drawn as a quiet scanner.
+    unknown = [
+        t
+        for t in saw
+        if "found_in_target" in (after.get(t) or {}) and after[t]["found_in_target"] is None
+    ]
+    if unknown:
+        return f"{', '.join(unknown)}: target gone after patch", "blind"
     quiet = [t for t in saw if not (after.get(t) or {}).get("found_in_target")]
     if len(quiet) == len(saw):
         return f"{', '.join(saw)} went quiet", "green"
@@ -125,8 +134,9 @@ def _scanner_state(rec: dict) -> tuple[str, str]:
 
 
 def three_lights_svg(rec: dict) -> str:
-    """The project's argument in one picture: for a fixed-but-broke run, the scanner
-    lamp and the security-test lamp are green, the regression lamp is red. The lamps
+    """The project's argument in one picture: for a fixed-but-broke run, the security
+    test is green and the regression lamp is red; the scanner lamp shows what the
+    scanners did (on pdfminer they kept alerting, so they could not tell). The lamps
     light up left to right (CSS animation inside the SVG, no script)."""
     scan_label, scan_state = _scanner_state(rec)
     sec = rec.get("security_tests") or {}

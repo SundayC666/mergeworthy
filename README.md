@@ -60,8 +60,13 @@ models, while two others (oauthenticator, kedro) were never even applied by any 
 And the two "fixed but broke" runs are the reason the regression half exists: on
 pdfminer.six, one patch from each capable model used `re.match()` without importing
 `re`. The security test passed (the code crashed before reaching the vulnerable
-load), both Bandit and Semgrep went quiet, and 26 of the project's 227 existing
-tests failed. Without the existing tests those two patches would have looked mergeable.
+load) and 26 of the project's 227 existing tests failed. Bandit and Semgrep kept
+flagging the same `pickle.load`, exactly as they did for the three clean pdfminer
+patches, so they could not tell the broken patches from the good ones. Without the
+existing tests those two patches would have looked mergeable. (Corrected 2026-11-13:
+this paragraph used to say both scanners went quiet. That came from a harness bug, which
+judged the after-patch scan against the function's pre-patch line range; it is fixed
+and the records were recomputed.)
 A control run with the whole file in the prompt instead of the one function (9 runs on
 the same case, kept in `runs-v2/`, never mixed into the table above) made the missing
 import disappear: both models imported `re` when they could see the import block. One

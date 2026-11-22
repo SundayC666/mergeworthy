@@ -22,6 +22,10 @@
     "lines": [
       57,
       263
+    ],
+    "lines_after": [
+      57,
+      292
     ]
   },
   "prompt_chars": 12109,
@@ -77,7 +81,9 @@
       "found_in_file": false,
       "found_in_target": false,
       "nearest_distance": null,
-      "error": null
+      "error": null,
+      "found_in_target_v1": false,
+      "nearest_distance_v1": null
     },
     "semgrep": {
       "tool": "semgrep",
@@ -86,7 +92,9 @@
       "found_in_file": false,
       "found_in_target": false,
       "nearest_distance": null,
-      "error": null
+      "error": null,
+      "found_in_target_v1": false,
+      "nearest_distance_v1": null
     }
   },
   "security_tests": {
@@ -117,5 +125,6 @@
   },
   "total_s": 20.3,
   "gateway_spend_after_usd": 0.4521529999999998,
-  "gateway_cost_usd_lower_bound": 0.0
+  "gateway_cost_usd_lower_bound": 0.0,
+  "scan_after_backfill": "2026-11-13: found_in_target recomputed against the patched target range (harness/backfill_scan_after.py); old values in *_v1"
 }

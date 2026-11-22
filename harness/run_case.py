@@ -47,7 +47,7 @@ from harness.poison import (
     removed_injection,
     touched_security_test,
 )
-from harness.scan import scan_target
+from harness.scan import scan_after_patch, scan_target
 from harness.setup_case import (
     REPO_ROOT,
     Case,
@@ -183,9 +183,9 @@ def run_one(
         if not applied.applied:
             verdict = classify(False, None, baseline, None)
         else:
-            record["scan_after"] = scan_target(
-                case, target.file, snippet.start_line, snippet.end_line
-            )
+            # Re-locate the target in the patched file: the patch moves lines (2026-11-04).
+            lines_after, record["scan_after"] = scan_after_patch(case, target)
+            record["target"]["lines_after"] = lines_after
             sec = run_security_tests(case, run_dir / "security_report.json")
             record["security_tests"] = {**asdict(sec), "all_passed": sec.all_passed}
             after = run_regression_tests(case, run_dir / "regression_after.json")

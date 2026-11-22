@@ -1,6 +1,16 @@
 """Unit tests for harness/scan.py: report parsing and the two-boolean rule. No tools run."""
 
-from harness.scan import Finding, parse_bandit, parse_semgrep, summarize
+from harness import scan
+from harness.patch import Target
+from harness.scan import (
+    Finding,
+    parse_bandit,
+    parse_semgrep,
+    retarget,
+    scan_after_patch,
+    summarize,
+)
+from harness.setup_case import Case
 
 BANDIT_REPORT = {
     "results": [
@@ -93,3 +103,59 @@ def test_any_of_several_case_cwes_counts():
 def test_distance_before_range_is_positive_too():
     s = summarize("bandit", [fx("CWE-89", 40)], ["CWE-89"], 45, 531)
     assert s.nearest_distance == 5 and not s.found_in_target
+
+
+def test_summarize_without_a_range_leaves_target_unknown():
+    # The patched file no longer contains the target: "in target" cannot be answered.
+    s = summarize("bandit", [fx("CWE-502", 255)], ["CWE-502"], None, None)
+    assert s.found_in_file
+    assert s.found_in_target is None and s.nearest_distance is None
+
+
+# --- the after-patch scan must use the PATCHED function's lines (bug found 2026-11-04) ---
+# pdfminer: the patch added 9 lines above pickle.load, the finding moved from line 246
+# to 255, and the old range 232-249 reported it as "outside the target": a false quiet.
+
+BEFORE = "import pickle\n\n\ndef load(name):\n    return pickle.load(open(name, 'rb'))\n"
+AFTER = (
+    "import pickle\n\n\ndef load(name):\n"
+    "    name = name.strip()\n    name = name.lower()\n    name = name[:64]\n"
+    "    return pickle.load(open(name, 'rb'))\n"
+)
+
+
+def _case_with(tmp_path, source: str) -> Case:
+    task = tmp_path / "task"
+    (task / "repo").mkdir(parents=True)
+    (task / "repo" / "m.py").write_text(source)
+    return Case("C", "p", ["CWE-502"], 9.8, "a", "b", "why", task)
+
+
+def _fake_tools(monkeypatch, line: int) -> None:
+    finding = Finding("bandit", "B301", "CWE-502", line, "MEDIUM", "pickle")
+    monkeypatch.setattr(scan, "run_bandit", lambda repo, rel: [finding])
+    monkeypatch.setattr(scan, "run_semgrep", lambda repo, rel: [])
+
+
+def test_scan_after_patch_relocates_the_target(tmp_path, monkeypatch):
+    case = _case_with(tmp_path, AFTER)
+    _fake_tools(monkeypatch, line=8)  # pickle.load, pushed down from line 5 by the patch
+    lines, scans = scan_after_patch(case, Target("m.py", "load"))
+    assert lines == [4, 8]
+    assert scans["bandit"]["found_in_target"] is True
+
+
+def test_scan_after_patch_when_the_target_is_gone(tmp_path, monkeypatch):
+    case = _case_with(tmp_path, "import pickle\n")  # patch deleted the function
+    _fake_tools(monkeypatch, line=1)
+    lines, scans = scan_after_patch(case, Target("m.py", "load"))
+    assert lines is None
+    assert scans["bandit"]["found_in_target"] is None and scans["bandit"]["found_in_file"]
+
+
+def test_retarget_recomputes_from_stored_findings_and_keeps_the_old_value():
+    stored = summarize("bandit", [fx("CWE-502", 255)], ["CWE-502"], 232, 249).as_record()
+    assert stored["found_in_target"] is False  # what the old records say
+    fixed = retarget(stored, [232, 258])
+    assert fixed["found_in_target"] is True and fixed["nearest_distance"] == 0
+    assert fixed["found_in_target_v1"] is False and fixed["nearest_distance_v1"] == 6

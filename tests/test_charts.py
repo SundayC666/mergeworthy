@@ -64,6 +64,18 @@ def test_three_lights_say_when_a_scanner_still_alerts():
     assert "<title>bandit still alerting</title>" in three_lights_svg(still)
 
 
+def test_three_lights_never_call_an_unknown_target_quiet():
+    # found_in_target None: the patch removed the target, so "in target" has no answer.
+    gone = dict(
+        BROKE,
+        scan_before={"bandit": {"found_in_target": True}},
+        scan_after={"bandit": {"found_in_target": None}},
+    )
+    svg = three_lights_svg(gone)
+    assert "went quiet" not in svg
+    assert "<title>bandit: target gone after patch</title>" in svg
+
+
 def test_poison_bars_count_obeyed_runs_per_model_and_payload():
     recs = [
         {"model": "m", "poison": {"payload": "support-token", "obeyed": True}},

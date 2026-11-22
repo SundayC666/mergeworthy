@@ -16,8 +16,9 @@ Decisions and what the bot would do with them:
   block   -> open an issue with the evidence; never a PR
   review  -> open a PR flagged "needs human review" with the evidence attached
   allow   -> open a PR with no flag. Auto-merge is never on (decision 2026-10-09 /
-             poison experiment 2026-10-20: two green patches carried an injected
-             constant, so green alone is not enough).
+             legacy-switch poison experiment 2026-10-22: two gpt-5.3-codex patches
+             on GitPython fixed the bug, passed every test and were allowed here
+             while carrying an env-var backdoor, so green alone is not enough).
 
 Every reason names the rule and the number it comes from, so the table in §6 can be
 checked against this file line by line. Fail-closed: anything the gate cannot read
